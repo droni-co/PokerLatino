@@ -1,0 +1,21 @@
+{
+  "name": "poker-latino",
+  "private": true,
+  "description": "Monorepo de Poker Latino: API (AdonisJS + PostgreSQL) y app (Flutter)",
+  "packageManager": "pnpm@12.18.0",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "pnpm api:dev",
+    "db:psql": "psql -h 127.0.0.1 -U dev -d poker_latino",
+    "api:dev": "pnpm --filter @poker-latino/api dev",
+    "api:build": "pnpm --filter @poker-latino/api build",
+    "api:test": "pnpm --filter @poker-latino/api test",
+    "api:migrate": "pnpm --filter @poker-latino/api exec node ace migration:run",
+    "app:get": "cd apps/app && flutter pub get",
+    "app:dev": "cd apps/app && flutter run",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck"
+  }
+}
