@@ -35,12 +35,16 @@ vine.messagesProvider = new SimpleMessagesProvider(
     'maxLength': 'Debe tener como máximo {{ max }} caracteres',
     'confirmed': 'Las contraseñas no coinciden',
     'database.unique': 'Ya existe una cuenta con este email',
+    'username.database.unique': 'Ese nombre de usuario ya está en uso',
+    'username.regex': 'Usa solo letras, números, punto, guion o guion bajo (sin espacios)',
+    'avatar.enum': 'Ese avatar no existe',
     'date': 'Ingresa una fecha válida',
     'birth_date.date.beforeOrEqual': 'Debes ser mayor de edad para registrarte',
     'birth_date.date.afterOrEqual': 'Ingresa una fecha de nacimiento válida',
   },
   {
     email: 'email',
+    username: 'nombre de usuario',
     password: 'contraseña',
     birth_date: 'fecha de nacimiento',
   }

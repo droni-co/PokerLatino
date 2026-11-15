@@ -16,6 +16,8 @@
     "api:seed": "pnpm --filter @poker-latino/api exec node ace db:seed",
     "app:get": "cd apps/app && flutter pub get",
     "app:dev": "cd apps/app && flutter run",
+    "app:web": "cd apps/app && flutter run -d chrome --web-port 8080",
+    "app:test": "cd apps/app && flutter test",
     "lint": "pnpm -r lint",
     "typecheck": "pnpm -r typecheck"
   }

@@ -17,11 +17,12 @@ export default class RegisterController {
    */
   async store(ctx: HttpContext) {
     const {
+      username,
       email,
       password,
       birth_date: birthDate,
     } = await ctx.request.validateUsing(registerValidator)
-    const user = await accountService.register({ email, password, birthDate })
+    const user = await accountService.register({ username, email, password, birthDate })
 
     await ctx.auth.use('web').login(user)
     return continueFlow(ctx)

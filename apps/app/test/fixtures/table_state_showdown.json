@@ -1,0 +1,160 @@
+{
+  "data": {
+    "room": {
+      "id": 1,
+      "name": "Principiantes",
+      "smallBlind": 5,
+      "bigBlind": 10,
+      "maxSeats": 5,
+      "actionTimeoutSeconds": 30
+    },
+    "hand": null,
+    "seats": [
+      {
+        "seatNumber": 1,
+        "player": {
+          "id": 1,
+          "displayName": "Jugador #1"
+        },
+        "stack": 490,
+        "inHand": false,
+        "committed": 0,
+        "folded": false,
+        "allIn": false,
+        "isTurn": false,
+        "holeCards": null
+      },
+      {
+        "seatNumber": 2,
+        "player": {
+          "id": 2,
+          "displayName": "Jugador #2"
+        },
+        "stack": 520,
+        "inHand": false,
+        "committed": 0,
+        "folded": false,
+        "allIn": false,
+        "isTurn": false,
+        "holeCards": null
+      },
+      {
+        "seatNumber": 3,
+        "player": {
+          "id": 3,
+          "displayName": "Jugador #3"
+        },
+        "stack": 490,
+        "inHand": false,
+        "committed": 0,
+        "folded": false,
+        "allIn": false,
+        "isTurn": false,
+        "holeCards": null
+      }
+    ],
+    "you": null,
+    "lastHand": {
+      "handId": 1,
+      "handNumber": 1,
+      "board": [
+        "Kc",
+        "5c",
+        "Js",
+        "5h",
+        "6c"
+      ],
+      "showdown": true,
+      "totalPot": 30,
+      "pots": [
+        {
+          "amount": 30,
+          "winners": [
+            {
+              "seatNumber": 2,
+              "playerId": 2,
+              "amount": 30
+            }
+          ]
+        }
+      ],
+      "players": [
+        {
+          "seatNumber": 1,
+          "playerId": 1,
+          "amountWon": 0,
+          "net": -10,
+          "folded": false,
+          "holeCards": [
+            "Jd",
+            "Qc"
+          ],
+          "handName": "Doble pareja",
+          "bestCards": [
+            "Jd",
+            "Js",
+            "5c",
+            "5h",
+            "Kc"
+          ]
+        },
+        {
+          "seatNumber": 2,
+          "playerId": 2,
+          "amountWon": 30,
+          "net": 20,
+          "folded": false,
+          "holeCards": [
+            "6h",
+            "5s"
+          ],
+          "handName": "Full",
+          "bestCards": [
+            "5s",
+            "5c",
+            "5h",
+            "6h",
+            "6c"
+          ]
+        },
+        {
+          "seatNumber": 3,
+          "playerId": 3,
+          "amountWon": 0,
+          "net": -10,
+          "folded": false,
+          "holeCards": [
+            "As",
+            "Jc"
+          ],
+          "handName": "Doble pareja",
+          "bestCards": [
+            "Jc",
+            "Js",
+            "5c",
+            "5h",
+            "As"
+          ]
+        }
+      ]
+    },
+    "chat": [
+      {
+        "id": 7,
+        "playerId": 2,
+        "displayName": "Jugador #2",
+        "avatar": null,
+        "body": "¡Full de cincos!",
+        "createdAt": "2026-11-14T18:00:05.000Z"
+      },
+      {
+        "id": 8,
+        "playerId": 9,
+        "displayName": "Mirón",
+        "avatar": "tucan",
+        "body": "Bien jugado",
+        "createdAt": "2026-11-14T18:00:09.000Z"
+      }
+    ]
+  }
+}

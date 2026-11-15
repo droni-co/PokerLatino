@@ -1,0 +1,36 @@
+{
+  "data": [
+    {
+      "id": 2,
+      "type": "buy_in",
+      "amount": -500,
+      "balanceAfter": 500,
+      "description": "Buy-in en Principiantes",
+      "reference": {
+        "type": "room",
+        "id": "1"
+      },
+      "createdAt": "2026-11-15T00:48:05.618+00:00"
+    },
+    {
+      "id": 1,
+      "type": "signup_bonus",
+      "amount": 1000,
+      "balanceAfter": 1000,
+      "description": "Fichas de bienvenida",
+      "reference": null,
+      "createdAt": "2026-11-15T00:48:05.615+00:00"
+    }
+  ],
+  "metadata": {
+    "total": 2,
+    "perPage": 20,
+    "currentPage": 1,
+    "lastPage": 1,
+    "firstPage": 1,
+    "firstPageUrl": "/?page=1",
+    "lastPageUrl": "/?page=1",
+    "nextPageUrl": null,
+    "previousPageUrl": null
+  }
+}

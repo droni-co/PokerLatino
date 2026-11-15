@@ -76,6 +76,7 @@ test.group('OAuth · registro y login (páginas web)', (group) => {
     const res = await client
       .post('/oauth/register')
       .form({
+        username: ' Nuevo_Jugador ',
         email: '  Nuevo@PokerLatino.test ',
         password: 'secreto123',
         password_confirmation: 'secreto123',
@@ -90,6 +91,9 @@ test.group('OAuth · registro y login (páginas web)', (group) => {
 
     const user = await User.findByOrFail('email', 'nuevo@pokerlatino.test')
     assert.notEqual(user.password, 'secreto123')
+    assert.equal(user.username, 'Nuevo_Jugador')
+    assert.equal(user.displayName, 'Nuevo_Jugador')
+    assert.isNull(user.avatar)
   })
 
   test('el registro rechaza emails duplicados y contraseñas que no coinciden', async ({
@@ -101,6 +105,7 @@ test.group('OAuth · registro y login (páginas web)', (group) => {
     const duplicated = await client
       .post('/oauth/register')
       .form({
+        username: 'duplicado',
         email: 'jugador@pokerlatino.test',
         password: 'secreto123',
         password_confirmation: 'secreto123',
@@ -116,6 +121,7 @@ test.group('OAuth · registro y login (páginas web)', (group) => {
     const mismatch = await client
       .post('/oauth/register')
       .form({
+        username: 'otro',
         email: 'otro@pokerlatino.test',
         password: 'secreto123',
         password_confirmation: 'distinta1',
@@ -131,6 +137,7 @@ test.group('OAuth · registro y login (páginas web)', (group) => {
     const res = await client
       .post('/oauth/register')
       .form({
+        username: 'otro',
         email: 'a@b.test',
         password: 'secreto123',
         password_confirmation: 'secreto123',

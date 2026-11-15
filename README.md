@@ -1,8 +1,8 @@
 # Poker Latino
 
-Juego de poker online multijugador.
-
-> ⚠️ **Antes de habilitar las salas con dinero real, revisar [Legal.md](Legal.md)** (licencias, KYC, AML, pagos, tiendas de apps).
+Juego de poker online multijugador. **Es un juego, no un casino:** se juega solo con **fichas**,
+que no se compran, no se venden y no se cambian por dinero. Ver [Legal.md](Legal.md) antes de
+agregar cualquier cosa que les dé valor real (compras, premios, intercambio).
 
 | App | Ruta | Stack |
 |-----|------|-------|
@@ -44,18 +44,28 @@ psql -h 127.0.0.1 -U dev -d postgres -c "CREATE DATABASE poker_latino;" -c "CREA
 Copia `apps/api/.env.example` a `apps/api/.env` si no existe y genera la clave con
 `pnpm --filter @poker-latino/api exec node ace generate:key`.
 
-### Cliente Flutter
+### Cliente Flutter (web y móvil)
 
-La primera vez, genera las carpetas de plataforma (android, ios, web, etc.):
+Requiere la API corriendo (`pnpm dev`) y el cliente OAuth sembrado (`pnpm api:seed`).
 
 ```bash
 cd apps/app
-flutter create . --project-name poker_latino --org co.droni
 flutter pub get
-flutter run --dart-define=API_URL=http://localhost:3333
+flutter run -d chrome --web-port 8080     # web
+flutter run -d emulator-5554              # Android (usa http://10.0.2.2:3333 automáticamente)
+flutter run --dart-define=API_URL=http://192.168.1.10:3333   # dispositivo físico en tu red
 ```
 
-En el emulador de Android usa `API_URL=http://10.0.2.2:3333`.
+- **Login**: OAuth2 + PKCE con las páginas de la API. En web se abre una ventana emergente que
+  vuelve a `/<origen>/auth.html`; en móvil, el navegador del sistema vuelve por el esquema
+  `co.droni.pokerlatino:/oauth/callback`. Los tokens se guardan cifrados (Keychain/Keystore) y la
+  renovación es de un solo vuelo (el servidor rota los refresh tokens).
+- **Mesa**: el estado se consulta cada segundo (polling). Tu asiento siempre aparece abajo.
+- **Producción web**: agrega `https://<tu-dominio>/auth.html` a los redirect URIs del seeder y el
+  origen a `config/cors.ts` (hoy solo se permite cualquier origen en desarrollo).
+- **Pruebas**: `flutter test` (PKCE con el vector del RFC 7636, cliente OAuth con servidor simulado,
+  modelos contra JSON real de la API en `test/fixtures/`, lógica y widgets de la mesa en tamaños
+  de móvil, horizontal y escritorio).
 
 ## Scripts (raíz)
 
@@ -67,46 +77,55 @@ En el emulador de Android usa `API_URL=http://10.0.2.2:3333`.
 | `pnpm api:seed` | Registra el cliente OAuth `poker-latino-app` y las salas iniciales |
 | `pnpm api:test` | Tests de la API (usa la DB `poker_latino_test`) |
 | `pnpm app:get` / `app:dev` | `flutter pub get` / `flutter run` |
+| `pnpm app:web` | App web en http://localhost:8080 |
+| `pnpm app:test` | Tests de la app Flutter |
 
 ## Juego y economía
 
 **Reglas generales**
 - Texas Hold'em No-Limit, salas de **5 jugadores**.
 - **Sin comisión de la casa** (`rake = 0`): los jugadores juegan entre sí y el 100% del pozo va al ganador.
-- Cada sala es de una sola moneda:
+- La única moneda son las **fichas**: 1000 de regalo al registrarse. Todos los montos de la API
+  son enteros (1 = 1 ficha).
 
-| Moneda | Tipo | Cómo se obtiene | Unidad en la API |
-|--------|------|-----------------|------------------|
-| `credits` | Gratis | 1000 al registrarse | 1 = 1 crédito |
-| `usd` | Pago | Recarga de saldo | 1 = 1 centavo (`2500` = $25.00) |
-
-Todos los montos de la API son **enteros en unidades mínimas**. La app los formatea usando
-`decimals` de `GET /api/v1/game/config`.
-
-**Cómo se mueve el dinero**
-- Cada jugador tiene una billetera por moneda (`wallets`).
+**Cómo se mueven las fichas**
+- Cada jugador tiene una sola billetera de fichas (`wallets`).
 - Todo movimiento queda en un libro contable inmutable (`wallet_transactions`) con el saldo resultante.
+  Los únicos tipos permitidos (también en la base de datos) son `signup_bonus`, `buy_in`, `cash_out`
+  y `adjustment`: no existen recargas ni retiros.
 - Al sentarse, el buy-in pasa de la billetera a la mesa (`room_seats.stack`); al levantarse, vuelve.
 - Las operaciones bloquean la billetera (`SELECT … FOR UPDATE`) y la base de datos impide saldos negativos.
-- Invariante: saldo en billeteras + fichas en mesas solo cambia con bonos, recargas y retiros.
+- Invariante: fichas en billeteras + fichas en mesas solo cambia con bonos y ajustes.
 
-**Tablas:** `wallets`, `wallet_transactions`, `deposits`, `rooms`, `room_seats`, `hands`,
-`hand_players`, `hand_actions` (historial que escribirá el motor de juego) y `player_stats`
-(estadísticas por jugador y moneda).
+**Mesas automáticas por nivel**
+- Cada **nivel** (`room_levels`: Principiantes, Clásica, High Rollers) define ciegas, buy-in y asientos.
+  Sus **mesas** (`rooms`) se llaman "Clásica · Mesa 2" y copian esas reglas.
+- Si los asientos libres de todo el nivel bajan de 2, el servidor abre otra mesa (reutiliza primero
+  la cerrada de número más bajo). Máximo 20 mesas por nivel.
+- Las mesas extra que pasan 5 minutos vacías se cierran (revisión cada 60 s en `start/game.ts`).
+  La Mesa 1 de cada nivel siempre queda abierta.
+- "Jugar" en un nivel elige la mesa: primero una donde alguien espera solo (así empieza la partida),
+  luego la que tenga más jugadores con lugar libre.
+- Para evitar carreras, sentarse bloquea primero el nivel y luego la mesa (`SELECT … FOR UPDATE`).
+- Todo se ajusta en `config/game.ts → rooms.autoTables`.
+
+**Tablas:** `wallets`, `wallet_transactions`, `room_levels`, `rooms`, `room_seats`, `hands`, `hand_players`,
+`hand_actions` (historial de manos) y `player_stats` (estadísticas por jugador).
 
 **Endpoints** (requieren token con scope `game`)
 
 | Endpoint | Descripción |
 |----------|-------------|
-| `GET /api/v1/game/config` | Monedas, bono inicial, rake, límites |
-| `GET /api/v1/wallets` | Saldos `credits` y `usd` |
-| `GET /api/v1/wallets/:currency/transactions` | Historial paginado (`page`, `perPage`) |
-| `POST /api/v1/deposits` | Inicia una recarga USD `{ amount }` (queda `pending`) |
-| `GET /api/v1/rooms?currency=credits\|usd` | Salas activas con asientos ocupados |
+| `GET /api/v1/game/config` | Fichas de bienvenida, rake, reglas de las salas |
+| `GET /api/v1/wallet` | Fichas disponibles `{ balance }` |
+| `GET /api/v1/wallet/transactions` | Historial paginado (`page`, `perPage`) |
+| `GET /api/v1/levels` | Niveles con sus mesas abiertas, jugadores y asientos ocupados |
+| `POST /api/v1/levels/:id/seat` | "Jugar" `{ buyIn }`: el servidor elige la mesa. `201 { roomId, seat }`; `200 { alreadySeated: true }` si ya estaba en una mesa del nivel (no cobra) |
+| `GET /api/v1/rooms` | Mesas abiertas con asientos ocupados |
 | `GET /api/v1/rooms/:id` | Detalle con asientos (sin emails) |
 | `POST /api/v1/rooms/:id/seat` | Sentarse `{ buyIn, seatNumber? }` |
 | `DELETE /api/v1/rooms/:id/seat` | Levantarse (devuelve las fichas a la billetera) |
-| `GET /api/v1/me/stats` | Estadísticas por moneda |
+| `GET /api/v1/me/stats` | Estadísticas del jugador |
 
 **Mesa en vivo** (requieren scope `game`)
 
@@ -114,6 +133,19 @@ Todos los montos de la API son **enteros en unidades mínimas**. La app los form
 |----------|-------------|
 | `GET /api/v1/rooms/:id/state` | Estado de la mesa para el jugador: mano, tablero, bote, turno, asientos, **solo sus cartas**, acciones legales y resultado de la mano anterior |
 | `POST /api/v1/rooms/:id/actions` | `{ action: fold\|check\|call\|bet\|raise\|all_in, amount? }`. En `bet`/`raise`, `amount` es el **total** a apostar en la calle ("subir a") |
+| `POST /api/v1/rooms/:id/show` | Entre manos: enseñar mis cartas aunque no fuera obligatorio (gané sin showdown o me retiré). `409 cannot_show` con la mano en curso o si ya se vieron en el showdown |
+| `GET /api/v1/rooms/:id/chat?after=` | Chat de la mesa: los mensajes posteriores a `after` o los últimos 50 |
+| `POST /api/v1/rooms/:id/chat` | `{ body }` (1–200 caracteres). Pueden escribir jugadores y espectadores; máximo 5 mensajes cada 10 s (`429 chat_rate_limited`) |
+
+`/state` acepta `?chatAfter=<id>` y devuelve en `chat` solo los mensajes nuevos, así el chat llega con el
+mismo sondeo de la mesa. En `lastHand.players`, `bestCards` trae las 5 cartas de la mejor mano de quienes
+llegaron al showdown (la app las resalta). Los mensajes se borran a los 3 días (`config/game.ts → chat`).
+
+Entre manos hay una pausa de 15 s (`config/game.ts → table.nextHandDelayMs`) para ver el resultado; `/state`
+trae `nextHandAt` con la hora de inicio de la siguiente. Durante esa pausa `lastHand.yourCards` trae tus cartas
+(solo a ti) y `lastHand.canShow` indica si puedes enseñarlas; quienes las enseñan aparecen en `lastHand.players`
+con `shown: true`, sus `holeCards` y su jugada (`handName`) si ya había flop. Cuando alguien se sienta en una mesa
+parada la mano arranca en 3 s (`firstHandDelayMs`), sin acortar ni alargar una pausa en curso.
 
 ### Motor de Texas Hold'em
 
@@ -134,16 +166,11 @@ Todos los montos de la API son **enteros en unidades mínimas**. La app los form
 - Los jugadores que dejan vencer su turno siguen recibiendo cartas; falta pasarlos a "sentado fuera" (*sitting out*).
 - Al entrar a una mano no se cobran ciegas pendientes (sin reglas de "dead button" ni "missed blinds").
 
-**Configuración:** `apps/api/config/game.ts` (bono, rake, asientos, límites de recarga).
-Las salas iniciales están en `database/seeders/room_seeder.ts`: 3 de credits y 3 de USD,
-con buy-in de 40 a 100 ciegas grandes.
+**Configuración:** `apps/api/config/game.ts` (fichas de bienvenida, rake, asientos, mesas automáticas).
+Los niveles están en `database/seeders/room_seeder.ts`: Principiantes (5/10), Clásica (10/20)
+y High Rollers (50/100), con buy-in de 40 a 100 ciegas grandes.
 
 **Registro:** email, contraseña y **fecha de nacimiento**, con una edad mínima de 18 años (`config/game.ts → minimumAge`).
-
-**Desarrollo:** para simular una recarga confirmada:
-```bash
-cd apps/api && node ace deposit:simulate --email=jugador@x.com --amount=2500
-```
 
 ## Autenticación (OAuth2)
 

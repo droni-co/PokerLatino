@@ -1,27 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_web_plugins/url_strategy.dart';
 
-import 'features/home/home_page.dart';
+import 'app.dart';
+import 'core/game_assets.dart';
+import 'core/sounds.dart';
 
-void main() {
-  runApp(const PokerLatinoApp());
-}
-
-class PokerLatinoApp extends StatelessWidget {
-  const PokerLatinoApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Poker Latino',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF0B6E4F), // verde mesa de poker
-          brightness: Brightness.dark,
-        ),
-        useMaterial3: true,
-      ),
-      home: const HomePage(),
-    );
-  }
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  // URLs limpias en web: /lobby en vez de /#/lobby
+  usePathUrlStrategy();
+  await GameAssets.load();
+  await Sounds.init();
+  runApp(const ProviderScope(child: PokerLatinoApp()));
 }

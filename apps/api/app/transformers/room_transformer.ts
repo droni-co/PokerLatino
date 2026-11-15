@@ -10,7 +10,8 @@ export default class RoomTransformer extends BaseTransformer<Room> {
       id: room.id,
       slug: room.slug,
       name: room.name,
-      currency: room.currency,
+      levelId: room.levelId,
+      tableNumber: room.tableNumber,
       gameType: room.gameType,
       bettingStructure: room.bettingStructure,
       maxSeats: room.maxSeats,
@@ -32,7 +33,11 @@ export default class RoomTransformer extends BaseTransformer<Room> {
       seatNumber: seat.seatNumber,
       stack: seat.stack,
       status: seat.status,
-      player: { id: seat.userId, displayName: seat.user?.displayName ?? `Jugador #${seat.userId}` },
+      player: {
+        id: seat.userId,
+        displayName: seat.user?.displayName ?? `Jugador #${seat.userId}`,
+        avatar: seat.user?.avatar ?? null,
+      },
     }
   }
 }

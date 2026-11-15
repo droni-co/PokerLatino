@@ -1,17 +1,23 @@
 import vine from '@vinejs/vine'
-import { CURRENCIES } from '#config/game'
-
-export const listRoomsValidator = vine.create({
-  currency: vine.enum(CURRENCIES).optional(),
-})
-
 export const sitValidator = vine.create({
   buyIn: vine.number().withoutDecimals().positive(),
   seatNumber: vine.number().withoutDecimals().positive().optional(),
 })
 
-export const createDepositValidator = vine.create({
-  amount: vine.number().withoutDecimals().positive(),
+export const quickSeatValidator = vine.create({
+  buyIn: vine.number().withoutDecimals().positive(),
+})
+
+export const chatMessageValidator = vine.create({
+  body: vine.string().trim().minLength(1).maxLength(200),
+})
+
+export const chatListValidator = vine.create({
+  after: vine.number().withoutDecimals().min(0).optional(),
+})
+
+export const tableStateValidator = vine.create({
+  chatAfter: vine.number().withoutDecimals().min(0).optional(),
 })
 
 export const transactionsValidator = vine.create({
@@ -23,4 +29,5 @@ export const tableActionValidator = vine.create({
   action: vine.enum(['fold', 'check', 'call', 'bet', 'raise', 'all_in'] as const),
   // Para bet/raise: total a apostar en la calle ("subir a")
   amount: vine.number().withoutDecimals().positive().optional(),
+  chatAfter: vine.number().withoutDecimals().min(0).optional(),
 })

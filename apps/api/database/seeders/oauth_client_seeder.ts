@@ -11,9 +11,13 @@ export const FLUTTER_CLIENT = {
   redirectUris: [
     // Android / iOS: esquema custom (RFC 8252 §7.1)
     'co.droni.pokerlatino:/oauth/callback',
-    // Flutter web y desktop en desarrollo: loopback, cualquier puerto (RFC 8252 §7.3)
+    // Flutter web en desarrollo: página web/auth.html de la app, cualquier puerto (RFC 8252 §7.3)
+    'http://localhost/auth.html',
+    'http://127.0.0.1/auth.html',
+    // Desktop / loopback
     'http://localhost/oauth/callback',
     'http://127.0.0.1/oauth/callback',
+    // Producción web: agregar aquí la URL pública, ej. 'https://pokerlatino.com/auth.html'
   ],
 }
 

@@ -1,10 +1,33 @@
 import vine from '@vinejs/vine'
 import { DateTime } from 'luxon'
-import gameConfig from '#config/game'
+import gameConfig, { AVATARS } from '#config/game'
 
 const email = () => vine.string().trim().toLowerCase().email().maxLength(254)
 
+/**
+ * Nombre de usuario único sin distinguir mayúsculas. Al editar el perfil, [exceptUserId]
+ * permite conservar el propio.
+ */
+const username = (exceptUserId?: number) =>
+  vine
+    .string()
+    .trim()
+    .minLength(gameConfig.username.minLength)
+    .maxLength(gameConfig.username.maxLength)
+    .regex(gameConfig.username.pattern)
+    .unique({
+      table: 'users',
+      column: 'username',
+      caseInsensitive: true,
+      filter: exceptUserId
+        ? (db) => {
+            db.whereNot('id', exceptUserId)
+          }
+        : undefined,
+    })
+
 export const registerValidator = vine.create({
+  username: username(),
   email: email().unique({ table: 'users', column: 'email' }),
   password: vine
     .string()
@@ -24,3 +47,12 @@ export const loginValidator = vine.create({
   email: email(),
   password: vine.string().maxLength(72),
 })
+
+/**
+ * PATCH /api/v1/me: cada campo es opcional; `avatar: null` vuelve al avatar al azar
+ */
+export const updateProfileValidator = (userId: number) =>
+  vine.create({
+    username: username(userId).optional(),
+    avatar: vine.enum(AVATARS).nullable().optional(),
+  })

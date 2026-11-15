@@ -1,0 +1,91 @@
+{
+  "data": {
+    "room": {
+      "id": 1,
+      "name": "Principiantes",
+      "smallBlind": 5,
+      "bigBlind": 10,
+      "maxSeats": 5,
+      "actionTimeoutSeconds": 30
+    },
+    "hand": {
+      "id": 1,
+      "number": 1,
+      "street": "preflop",
+      "board": [],
+      "pot": 15,
+      "currentBet": 10,
+      "dealerSeat": 1,
+      "smallBlindSeat": 2,
+      "bigBlindSeat": 3,
+      "toActSeat": 1,
+      "turnDeadline": "2026-11-15T00:48:35.634+00:00"
+    },
+    "seats": [
+      {
+        "seatNumber": 1,
+        "player": {
+          "id": 1,
+          "displayName": "Jugador #1"
+        },
+        "stack": 500,
+        "inHand": true,
+        "committed": 0,
+        "folded": false,
+        "allIn": false,
+        "isTurn": true,
+        "holeCards": [
+          "Jd",
+          "Qc"
+        ]
+      },
+      {
+        "seatNumber": 2,
+        "player": {
+          "id": 2,
+          "displayName": "Jugador #2"
+        },
+        "stack": 495,
+        "inHand": true,
+        "committed": 5,
+        "folded": false,
+        "allIn": false,
+        "isTurn": false,
+        "holeCards": null
+      },
+      {
+        "seatNumber": 3,
+        "player": {
+          "id": 3,
+          "displayName": "Jugador #3"
+        },
+        "stack": 490,
+        "inHand": true,
+        "committed": 10,
+        "folded": false,
+        "allIn": false,
+        "isTurn": false,
+        "holeCards": null
+      }
+    ],
+    "you": {
+      "seatNumber": 1,
+      "holeCards": [
+        "Jd",
+        "Qc"
+      ],
+      "legalActions": {
+        "fold": true,
+        "check": false,
+        "call": 10,
+        "bet": null,
+        "raise": {
+          "min": 20,
+          "max": 500
+        }
+      }
+    },
+    "lastHand": null,
+    "chat": []
+  }
+}

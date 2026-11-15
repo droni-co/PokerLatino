@@ -7,35 +7,17 @@
 import { BaseModel, column } from '@adonisjs/lucid/orm'
 import { DateTime } from 'luxon'
 
-export class DepositSchema extends BaseModel {
-  static $columns = [
-    'amount',
-    'completedAt',
-    'createdAt',
-    'id',
-    'provider',
-    'providerReference',
-    'status',
-    'updatedAt',
-    'userId',
-  ] as const
-  $columns = DepositSchema.$columns
+export class ChatMessageSchema extends BaseModel {
+  static $columns = ['body', 'createdAt', 'id', 'roomId', 'userId'] as const
+  $columns = ChatMessageSchema.$columns
   @column()
-  declare amount: number
-  @column.dateTime()
-  declare completedAt: DateTime | null
+  declare body: string
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
   @column({ isPrimary: true })
-  declare id: string
+  declare id: bigint | number
   @column()
-  declare provider: string
-  @column()
-  declare providerReference: string | null
-  @column()
-  declare status: string
-  @column.dateTime({ autoCreate: true, autoUpdate: true })
-  declare updatedAt: DateTime | null
+  declare roomId: number
   @column()
   declare userId: number
 }
@@ -109,7 +91,6 @@ export class HandPlayerSchema extends BaseModel {
 export class HandSchema extends BaseModel {
   static $columns = [
     'bigBlind',
-    'currency',
     'dealerSeat',
     'endedAt',
     'handNumber',
@@ -123,8 +104,6 @@ export class HandSchema extends BaseModel {
   $columns = HandSchema.$columns
   @column()
   declare bigBlind: number
-  @column()
-  declare currency: string
   @column()
   declare dealerSeat: number
   @column.dateTime()
@@ -281,14 +260,11 @@ export class PlayerStatSchema extends BaseModel {
   static $columns = [
     'biggestPotWon',
     'createdAt',
-    'currency',
     'handsPlayed',
     'handsWon',
     'id',
     'showdownsReached',
-    'totalDeposited',
     'totalWagered',
-    'totalWithdrawn',
     'totalWon',
     'updatedAt',
     'userId',
@@ -299,8 +275,6 @@ export class PlayerStatSchema extends BaseModel {
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
   @column()
-  declare currency: string
-  @column()
   declare handsPlayed: number
   @column()
   declare handsWon: number
@@ -309,11 +283,7 @@ export class PlayerStatSchema extends BaseModel {
   @column()
   declare showdownsReached: number
   @column()
-  declare totalDeposited: number
-  @column()
   declare totalWagered: number
-  @column()
-  declare totalWithdrawn: number
   @column()
   declare totalWon: number
   @column.dateTime({ autoCreate: true, autoUpdate: true })
@@ -322,43 +292,12 @@ export class PlayerStatSchema extends BaseModel {
   declare userId: number
 }
 
-export class RoomSeatSchema extends BaseModel {
-  static $columns = [
-    'createdAt',
-    'id',
-    'roomId',
-    'seatNumber',
-    'stack',
-    'status',
-    'updatedAt',
-    'userId',
-  ] as const
-  $columns = RoomSeatSchema.$columns
-  @column.dateTime({ autoCreate: true })
-  declare createdAt: DateTime
-  @column({ isPrimary: true })
-  declare id: number
-  @column()
-  declare roomId: number
-  @column()
-  declare seatNumber: number
-  @column()
-  declare stack: number
-  @column()
-  declare status: string
-  @column.dateTime({ autoCreate: true, autoUpdate: true })
-  declare updatedAt: DateTime | null
-  @column()
-  declare userId: number
-}
-
-export class RoomSchema extends BaseModel {
+export class RoomLevelSchema extends BaseModel {
   static $columns = [
     'actionTimeoutSeconds',
     'bettingStructure',
     'bigBlind',
     'createdAt',
-    'currency',
     'gameType',
     'id',
     'maxBuyIn',
@@ -370,7 +309,7 @@ export class RoomSchema extends BaseModel {
     'status',
     'updatedAt',
   ] as const
-  $columns = RoomSchema.$columns
+  $columns = RoomLevelSchema.$columns
   @column()
   declare actionTimeoutSeconds: number
   @column()
@@ -379,8 +318,6 @@ export class RoomSchema extends BaseModel {
   declare bigBlind: number
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
-  @column()
-  declare currency: string
   @column()
   declare gameType: string
   @column({ isPrimary: true })
@@ -403,9 +340,113 @@ export class RoomSchema extends BaseModel {
   declare updatedAt: DateTime | null
 }
 
+export class RoomSeatSchema extends BaseModel {
+  static $columns = [
+    'createdAt',
+    'id',
+    'leaveAfterHand',
+    'missedHands',
+    'roomId',
+    'seatNumber',
+    'stack',
+    'status',
+    'updatedAt',
+    'userId',
+  ] as const
+  $columns = RoomSeatSchema.$columns
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare leaveAfterHand: boolean
+  @column()
+  declare missedHands: number
+  @column()
+  declare roomId: number
+  @column()
+  declare seatNumber: number
+  @column()
+  declare stack: number
+  @column()
+  declare status: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
+  @column()
+  declare userId: number
+}
+
+export class RoomSchema extends BaseModel {
+  static $columns = [
+    'actionTimeoutSeconds',
+    'bettingStructure',
+    'bigBlind',
+    'createdAt',
+    'emptySince',
+    'gameType',
+    'id',
+    'levelId',
+    'maxBuyIn',
+    'maxSeats',
+    'minBuyIn',
+    'name',
+    'slug',
+    'smallBlind',
+    'status',
+    'tableNumber',
+    'updatedAt',
+  ] as const
+  $columns = RoomSchema.$columns
+  @column()
+  declare actionTimeoutSeconds: number
+  @column()
+  declare bettingStructure: string
+  @column()
+  declare bigBlind: number
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column.dateTime()
+  declare emptySince: DateTime | null
+  @column()
+  declare gameType: string
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare levelId: number
+  @column()
+  declare maxBuyIn: number
+  @column()
+  declare maxSeats: number
+  @column()
+  declare minBuyIn: number
+  @column()
+  declare name: string
+  @column()
+  declare slug: string
+  @column()
+  declare smallBlind: number
+  @column()
+  declare status: string
+  @column()
+  declare tableNumber: number
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
+}
+
 export class UserSchema extends BaseModel {
-  static $columns = ['birthDate', 'createdAt', 'email', 'id', 'password', 'updatedAt'] as const
+  static $columns = [
+    'avatar',
+    'birthDate',
+    'createdAt',
+    'email',
+    'id',
+    'password',
+    'updatedAt',
+    'username',
+  ] as const
   $columns = UserSchema.$columns
+  @column()
+  declare avatar: string | null
   @column.date()
   declare birthDate: DateTime
   @column.dateTime({ autoCreate: true })
@@ -418,6 +459,8 @@ export class UserSchema extends BaseModel {
   declare password: string
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime | null
+  @column()
+  declare username: string | null
 }
 
 export class WalletTransactionSchema extends BaseModel {
@@ -454,14 +497,12 @@ export class WalletTransactionSchema extends BaseModel {
 }
 
 export class WalletSchema extends BaseModel {
-  static $columns = ['balance', 'createdAt', 'currency', 'id', 'updatedAt', 'userId'] as const
+  static $columns = ['balance', 'createdAt', 'id', 'updatedAt', 'userId'] as const
   $columns = WalletSchema.$columns
   @column()
   declare balance: number
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
-  @column()
-  declare currency: string
   @column({ isPrimary: true })
   declare id: number
   @column.dateTime({ autoCreate: true, autoUpdate: true })

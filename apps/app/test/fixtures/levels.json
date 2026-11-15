@@ -1,0 +1,57 @@
+{
+  "data": [
+    {
+      "id": 1,
+      "slug": "principiantes",
+      "name": "Principiantes",
+      "gameType": "texas_holdem",
+      "bettingStructure": "no_limit",
+      "maxSeats": 5,
+      "smallBlind": 5,
+      "bigBlind": 10,
+      "minBuyIn": 400,
+      "maxBuyIn": 1000,
+      "actionTimeoutSeconds": 15,
+      "playerCount": 9,
+      "tables": [
+        { "id": 1, "tableNumber": 1, "name": "Principiantes · Mesa 1", "maxSeats": 5, "seatedCount": 5 },
+        { "id": 4, "tableNumber": 2, "name": "Principiantes · Mesa 2", "maxSeats": 5, "seatedCount": 4 },
+        { "id": 5, "tableNumber": 3, "name": "Principiantes · Mesa 3", "maxSeats": 5, "seatedCount": 0 }
+      ]
+    },
+    {
+      "id": 2,
+      "slug": "clasica",
+      "name": "Clásica",
+      "gameType": "texas_holdem",
+      "bettingStructure": "no_limit",
+      "maxSeats": 5,
+      "smallBlind": 10,
+      "bigBlind": 20,
+      "minBuyIn": 800,
+      "maxBuyIn": 2000,
+      "actionTimeoutSeconds": 15,
+      "playerCount": 1,
+      "tables": [
+        { "id": 2, "tableNumber": 1, "name": "Clásica · Mesa 1", "maxSeats": 5, "seatedCount": 1 }
+      ]
+    },
+    {
+      "id": 3,
+      "slug": "high-rollers",
+      "name": "High Rollers",
+      "gameType": "texas_holdem",
+      "bettingStructure": "no_limit",
+      "maxSeats": 5,
+      "smallBlind": 50,
+      "bigBlind": 100,
+      "minBuyIn": 4000,
+      "maxBuyIn": 10000,
+      "actionTimeoutSeconds": 15,
+      "playerCount": 0,
+      "tables": [
+        { "id": 3, "tableNumber": 1, "name": "High Rollers · Mesa 1", "maxSeats": 5, "seatedCount": 0 }
+      ]
+    }
+  ]
+}

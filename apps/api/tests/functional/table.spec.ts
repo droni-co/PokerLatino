@@ -9,6 +9,8 @@ import Hand from '#models/hand'
 import HandAction from '#models/hand_action'
 import RoomSeat from '#models/room_seat'
 import PlayerStat from '#models/player_stat'
+import Wallet from '#models/wallet'
+import WalletTransaction from '#models/wallet_transaction'
 import accountService from '#services/game/account_service'
 import roomService from '#services/game/room_service'
 import tableManager, { TableManager } from '#game/table_manager'
@@ -16,18 +18,20 @@ import type { ActionType } from '#game/holdem/engine'
 
 let counter = 0
 function createPlayer() {
+  counter++
   return accountService.register({
-    email: `mesa${++counter}@pokerlatino.test`,
+    username: `mesa${counter}`,
+    email: `mesa${counter}@pokerlatino.test`,
     password: 'secreto123',
     birthDate: DateTime.fromISO('1990-05-20'),
   })
 }
 
 /**
- * Sala "Principiantes" (credits, ciegas 5/10) con N jugadores sentados con 500
+ * Sala "Principiantes" (ciegas 5/10) con N jugadores sentados con 500
  */
 async function tableWith(count: number) {
-  const room = await Room.findByOrFail('slug', 'credits-principiantes')
+  const room = await Room.findByOrFail('slug', 'principiantes-1')
   const players: User[] = []
   for (let i = 0; i < count; i++) {
     const player = await createPlayer()
@@ -120,7 +124,6 @@ test.group('Mesa en vivo', (group) => {
         'user_id',
         players.map((p) => p.id)
       )
-      .where('currency', 'credits')
       .orderBy('user_id')
     assert.deepEqual(
       stats.map((s) => [s.handsPlayed, s.handsWon, s.net]),
@@ -133,7 +136,7 @@ test.group('Mesa en vivo', (group) => {
 
     // Al levantarse, las fichas ganadas vuelven a la billetera
     const leave = await client.delete(`/api/v1/rooms/${room.id}/seat`).loginAs(players[0])
-    leave.assertBody({ data: { currency: 'credits', cashedOut: 515 } })
+    leave.assertBody({ data: { cashedOut: 515, pending: false } })
   })
 
   test('errores: fuera de turno, acción inválida y sin mano en curso', async ({ client }) => {
@@ -162,12 +165,134 @@ test.group('Mesa en vivo', (group) => {
     outsider.assertBodyContains({ error: 'not_in_hand' })
   })
 
-  test('no se puede levantar en medio de una mano', async ({ client }) => {
-    const { room, players } = await tableWith(2)
-    await tableManager.startHandIfReady(room.id)
+  test('levantarse en su turno: se retira al instante y cobra al terminar la mano', async ({
+    client,
+    assert,
+  }) => {
+    const { room, players } = await tableWith(3)
+    await tableManager.startHandIfReady(room.id) // botón (1) habla primero
+
     const res = await client.delete(`/api/v1/rooms/${room.id}/seat`).loginAs(players[0])
-    res.assertStatus(409)
-    res.assertBodyContains({ error: 'hand_in_progress' })
+    res.assertStatus(202)
+    res.assertBody({ data: { cashedOut: 0, pending: true } })
+
+    // Ya se retiró y el turno pasó a la ciega pequeña
+    const state = await tableManager.getState(room.id, players[1].id)
+    const leaver = state.seats.find((s) => s.player.id === players[0].id)!
+    assert.isTrue(leaver.folded)
+    assert.isTrue(leaver.leaving)
+    assert.equal(state.hand!.toActSeat, 2)
+
+    await tableManager.act(room.id, players[1].id, { type: 'fold' }) // gana la ciega grande
+    assert.deepEqual(await seatStacks(room.id), [495, 505])
+    assert.isNull(await RoomSeat.query().where('user_id', players[0].id).first())
+    const wallet = await Wallet.query().where('user_id', players[0].id).firstOrFail()
+    assert.equal(wallet.balance, 1000) // 500 en billetera + 500 que no llegó a apostar
+  })
+
+  test('levantarse fuera de turno: se retira cuando le toca, sin esperar su tiempo', async ({
+    client,
+    assert,
+  }) => {
+    const { room, players } = await tableWith(3)
+    await tableManager.startHandIfReady(room.id)
+
+    const res = await client.delete(`/api/v1/rooms/${room.id}/seat`).loginAs(players[2]) // ciega grande
+    res.assertStatus(202)
+    let state = await tableManager.getState(room.id, players[2].id)
+    assert.isFalse(state.seats[2].folded)
+
+    await tableManager.act(room.id, players[0].id, { type: 'raise', amount: 30 })
+    await tableManager.act(room.id, players[1].id, { type: 'fold' })
+    // Le tocaba a la ciega grande: se retiró sola y la mano terminó
+    state = await tableManager.getState(room.id, players[0].id)
+    assert.isNull(state.hand)
+    assert.deepEqual(await seatStacks(room.id), [515, 495])
+    const cashOut = await WalletTransaction.query()
+      .whereIn('wallet_id', Wallet.query().select('id').where('user_id', players[2].id))
+      .where('type', 'cash_out')
+      .firstOrFail()
+    assert.equal(cashOut.amount, 490)
+  })
+
+  test('si pidió levantarse justo al cerrar la mano, no recibe cartas en la siguiente', async ({
+    assert,
+  }) => {
+    const { room, players } = await tableWith(3)
+    await RoomSeat.query().where('user_id', players[1].id).update({ leave_after_hand: true })
+
+    const hand = await tableManager.startHandIfReady(room.id)
+    assert.lengthOf(hand!.players, 2)
+    assert.notInclude(
+      hand!.players.map((p) => p.userId),
+      players[1].id
+    )
+    assert.isNull(await RoomSeat.query().where('user_id', players[1].id).first())
+  })
+
+  test('sin mano en curso se levanta al instante', async ({ client }) => {
+    const { room, players } = await tableWith(2)
+    const res = await client.delete(`/api/v1/rooms/${room.id}/seat`).loginAs(players[0])
+    res.assertStatus(200)
+    res.assertBody({ data: { cashedOut: 500, pending: false } })
+  })
+
+  test('inactividad: tras 2 manos seguidas sin actuar se le levanta de la mesa', async ({
+    assert,
+  }) => {
+    const { room, players } = await tableWith(3)
+    const idle = players[2]
+
+    /** Juega una mano: el inactivo deja correr su tiempo, los demás pasan/igualan */
+    async function playHand() {
+      const hand = (await tableManager.startHandIfReady(room.id))!
+      while (!hand.isComplete) {
+        const seat = hand.toActSeat!
+        const userId = hand.player(seat).userId
+        if (userId === idle.id) {
+          await tableManager.handleTimeout(room.id)
+        } else {
+          const legal = hand.legalActions(seat)!
+          await tableManager.act(room.id, userId, { type: legal.check ? 'check' : 'call' })
+        }
+      }
+    }
+
+    await playHand()
+    const seat = await RoomSeat.query().where('user_id', idle.id).firstOrFail()
+    assert.equal(seat.missedHands, 1)
+    const active = await RoomSeat.query().where('user_id', players[0].id).firstOrFail()
+    assert.equal(active.missedHands, 0)
+
+    await playHand()
+    assert.isNull(await RoomSeat.query().where('user_id', idle.id).first())
+    const cashOut = await WalletTransaction.query()
+      .whereIn('wallet_id', Wallet.query().select('id').where('user_id', idle.id))
+      .where('type', 'cash_out')
+      .firstOrFail()
+    assert.include(cashOut.description!, 'inactividad')
+    assert.isAbove(cashOut.amount, 0)
+
+    // Los demás siguen jugando
+    const next = await tableManager.startHandIfReady(room.id)
+    assert.lengthOf(next!.players, 2)
+  })
+
+  test('inactividad: actuar reinicia el contador', async ({ assert }) => {
+    const { room, players } = await tableWith(2)
+    await RoomSeat.query().where('user_id', players[0].id).update({ missed_hands: 1 })
+
+    await tableManager.startHandIfReady(room.id)
+    await tableManager.act(room.id, players[0].id, { type: 'fold' }) // botón/SB se retira
+    const seat = await RoomSeat.query().where('user_id', players[0].id).firstOrFail()
+    assert.equal(seat.missedHands, 0)
+  })
+
+  test('las salas dan 15 segundos por turno', async ({ client, assert }) => {
+    const res = await client.get('/api/v1/rooms').loginAs(await createPlayer())
+    const rooms = (res.body() as any).data
+    assert.isAbove(rooms.length, 0)
+    assert.isTrue(rooms.every((r: any) => r.actionTimeoutSeconds === 15))
   })
 
   test('al agotarse el tiempo pasa si puede, si no se retira', async ({ assert }) => {
@@ -258,7 +383,6 @@ test.group('Mesa en vivo', (group) => {
         'user_id',
         players.map((p) => p.id)
       )
-      .where('currency', 'credits')
       .select(db.raw('COALESCE(SUM(total_won - total_wagered), 0)::bigint as net'))
     assert.equal(Number(net), 0)
   })

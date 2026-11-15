@@ -1,51 +1,35 @@
 import { BaseSeeder } from '@adonisjs/lucid/seeders'
-import Room from '#models/room'
-import gameConfig, { type Currency } from '#config/game'
+import db from '@adonisjs/lucid/services/db'
+import RoomLevel from '#models/room_level'
+import roomService from '#services/game/room_service'
+import gameConfig from '#config/game'
 
-type RoomSeed = {
+type LevelSeed = {
   slug: string
   name: string
-  currency: Currency
   smallBlind: number
   bigBlind: number
 }
 
 /**
- * Salas iniciales. Buy-in estándar: mínimo 40 ciegas grandes, máximo 100.
- * Montos en unidades mínimas (créditos / centavos).
+ * Niveles (categorías) de sala, todos en fichas. Buy-in estándar: de 40 a 100 ciegas grandes.
+ * Las mesas de cada nivel las abre y cierra el servidor según la cantidad de jugadores.
  */
-const ROOMS: RoomSeed[] = [
-  // Gratis (credits)
-  {
-    slug: 'credits-principiantes',
-    name: 'Principiantes',
-    currency: 'credits',
-    smallBlind: 5,
-    bigBlind: 10,
-  },
-  { slug: 'credits-clasica', name: 'Clásica', currency: 'credits', smallBlind: 10, bigBlind: 20 },
-  {
-    slug: 'credits-high-rollers',
-    name: 'High Rollers',
-    currency: 'credits',
-    smallBlind: 50,
-    bigBlind: 100,
-  },
-  // Pago (usd, en centavos)
-  { slug: 'usd-micro', name: 'Micro $0.01/$0.02', currency: 'usd', smallBlind: 1, bigBlind: 2 },
-  { slug: 'usd-low', name: 'Low $0.05/$0.10', currency: 'usd', smallBlind: 5, bigBlind: 10 },
-  { slug: 'usd-mid', name: 'Mid $0.25/$0.50', currency: 'usd', smallBlind: 25, bigBlind: 50 },
+const LEVELS: LevelSeed[] = [
+  { slug: 'principiantes', name: 'Principiantes', smallBlind: 5, bigBlind: 10 },
+  { slug: 'clasica', name: 'Clásica', smallBlind: 10, bigBlind: 20 },
+  { slug: 'high-rollers', name: 'High Rollers', smallBlind: 50, bigBlind: 100 },
 ]
 
 export default class extends BaseSeeder {
   async run() {
-    for (const room of ROOMS) {
-      await Room.updateOrCreate(
-        { slug: room.slug },
+    for (const seed of LEVELS) {
+      const level = await RoomLevel.updateOrCreate(
+        { slug: seed.slug },
         {
-          ...room,
-          minBuyIn: room.bigBlind * 40,
-          maxBuyIn: room.bigBlind * 100,
+          ...seed,
+          minBuyIn: seed.bigBlind * 40,
+          maxBuyIn: seed.bigBlind * 100,
           maxSeats: gameConfig.rooms.maxSeats,
           actionTimeoutSeconds: gameConfig.rooms.actionTimeoutSeconds,
           gameType: 'texas_holdem',
@@ -53,6 +37,8 @@ export default class extends BaseSeeder {
           status: 'active',
         }
       )
+      // Abre la(s) primera(s) mesa(s) del nivel
+      await db.transaction((trx) => roomService.ensureCapacity(trx, level))
     }
   }
 }

@@ -164,6 +164,19 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/profile_controller').default['show']>>>
     }
   }
+  'me.update': {
+    methods: ["PATCH"]
+    pattern: '/api/v1/me'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/user').updateProfileValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/user').updateProfileValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/profile_controller').default['update']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/profile_controller').default['update']>>> | { status: 422; response: { errors: SimpleError[] } }
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/profile_controller').default['update']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
   'game.config': {
     methods: ["GET","HEAD"]
     pattern: '/api/v1/game/config'
@@ -177,43 +190,56 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/game/config_controller').default['show']>>>
     }
   }
-  'wallets.index': {
+  'wallet.show': {
     methods: ["GET","HEAD"]
-    pattern: '/api/v1/wallets'
+    pattern: '/api/v1/wallet'
     types: {
       body: {}
       paramsTuple: []
       params: {}
       query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/game/wallets_controller').default['index']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/game/wallets_controller').default['index']>>>
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/game/wallets_controller').default['index']>>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/game/wallets_controller').default['show']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/game/wallets_controller').default['show']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/game/wallets_controller').default['show']>>>
     }
   }
-  'wallets.transactions': {
+  'wallet.transactions': {
     methods: ["GET","HEAD"]
-    pattern: '/api/v1/wallets/:currency/transactions'
+    pattern: '/api/v1/wallet/transactions'
     types: {
       body: {}
-      paramsTuple: [ParamValue]
-      params: { currency: ParamValue }
+      paramsTuple: []
+      params: {}
       query: ExtractQueryForGet<InferInput<(typeof import('#validators/game').transactionsValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/game/wallets_controller').default['transactions']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/game/wallets_controller').default['transactions']>>> | { status: 422; response: { errors: SimpleError[] } }
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/game/wallets_controller').default['transactions']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
-  'deposits.store': {
-    methods: ["POST"]
-    pattern: '/api/v1/deposits'
+  'levels.index': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/levels'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/game').createDepositValidator)>>
+      body: {}
       paramsTuple: []
       params: {}
-      query: ExtractQuery<InferInput<(typeof import('#validators/game').createDepositValidator)>>
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/game/deposits_controller').default['store']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/game/deposits_controller').default['store']>>> | { status: 422; response: { errors: SimpleError[] } }
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/game/deposits_controller').default['store']>>> | { status: 422; response: { errors: SimpleError[] } }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/game/levels_controller').default['index']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/game/levels_controller').default['index']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/game/levels_controller').default['index']>>>
+    }
+  }
+  'levels.seat': {
+    methods: ["POST"]
+    pattern: '/api/v1/levels/:id/seat'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/game').quickSeatValidator)>>
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/game').quickSeatValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/game/levels_controller').default['seat']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/game/levels_controller').default['seat']>>> | { status: 422; response: { errors: SimpleError[] } }
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/game/levels_controller').default['seat']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
   'rooms.index': {
@@ -223,10 +249,10 @@ export interface Registry {
       body: {}
       paramsTuple: []
       params: {}
-      query: ExtractQueryForGet<InferInput<(typeof import('#validators/game').listRoomsValidator)>>
+      query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/game/rooms_controller').default['index']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/game/rooms_controller').default['index']>>> | { status: 422; response: { errors: SimpleError[] } }
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/game/rooms_controller').default['index']>>> | { status: 422; response: { errors: SimpleError[] } }
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/game/rooms_controller').default['index']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/game/rooms_controller').default['index']>>>
     }
   }
   'rooms.show': {
@@ -275,10 +301,10 @@ export interface Registry {
       body: {}
       paramsTuple: [ParamValue]
       params: { id: ParamValue }
-      query: {}
+      query: ExtractQueryForGet<InferInput<(typeof import('#validators/game').tableStateValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/game/tables_controller').default['show']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/game/tables_controller').default['show']>>>
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/game/tables_controller').default['show']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/game/tables_controller').default['show']>>> | { status: 422; response: { errors: SimpleError[] } }
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/game/tables_controller').default['show']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
   'rooms.act': {
@@ -292,6 +318,45 @@ export interface Registry {
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/game/tables_controller').default['act']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/game/tables_controller').default['act']>>> | { status: 422; response: { errors: SimpleError[] } }
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/game/tables_controller').default['act']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'rooms.show_cards': {
+    methods: ["POST"]
+    pattern: '/api/v1/rooms/:id/show'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/game').tableStateValidator)>>
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/game').tableStateValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/game/tables_controller').default['showCards']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/game/tables_controller').default['showCards']>>> | { status: 422; response: { errors: SimpleError[] } }
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/game/tables_controller').default['showCards']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'rooms.chat': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/rooms/:id/chat'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: ExtractQueryForGet<InferInput<(typeof import('#validators/game').chatListValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/game/chat_controller').default['index']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/game/chat_controller').default['index']>>> | { status: 422; response: { errors: SimpleError[] } }
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/game/chat_controller').default['index']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'rooms.chat.store': {
+    methods: ["POST"]
+    pattern: '/api/v1/rooms/:id/chat'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/game').chatMessageValidator)>>
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/game').chatMessageValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/game/chat_controller').default['store']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/game/chat_controller').default['store']>>> | { status: 422; response: { errors: SimpleError[] } }
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/game/chat_controller').default['store']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
   'me.stats': {

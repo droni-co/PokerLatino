@@ -21,17 +21,19 @@ export interface ApiDefinition {
     introspect: typeof routes['oauth.introspect']
   }
   me: typeof routes['me'] & {
+    update: typeof routes['me.update']
     stats: typeof routes['me.stats']
   }
   game: {
     config: typeof routes['game.config']
   }
-  wallets: {
-    index: typeof routes['wallets.index']
-    transactions: typeof routes['wallets.transactions']
+  wallet: {
+    show: typeof routes['wallet.show']
+    transactions: typeof routes['wallet.transactions']
   }
-  deposits: {
-    store: typeof routes['deposits.store']
+  levels: {
+    index: typeof routes['levels.index']
+    seat: typeof routes['levels.seat']
   }
   rooms: {
     index: typeof routes['rooms.index']
@@ -40,5 +42,9 @@ export interface ApiDefinition {
     leave: typeof routes['rooms.leave']
     state: typeof routes['rooms.state']
     act: typeof routes['rooms.act']
+    showCards: typeof routes['rooms.show_cards']
+    chat: typeof routes['rooms.chat'] & {
+      store: typeof routes['rooms.chat.store']
+    }
   }
 }

@@ -1,0 +1,12 @@
+{
+  "data": {
+    "handsPlayed": 1,
+    "handsWon": 0,
+    "winRate": 0,
+    "showdownsReached": 1,
+    "totalWagered": 10,
+    "totalWon": 0,
+    "net": -10,
+    "biggestPotWon": 0
+  }
+}

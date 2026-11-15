@@ -9,24 +9,20 @@ import HandPlayer from '#models/hand_player'
 import Wallet from '#models/wallet'
 import PlayerStat from '#models/player_stat'
 import accountService from '#services/game/account_service'
-import depositService from '#services/game/deposit_service'
 import oauthServer from '#services/oauth/oauth_server'
-import type { Currency } from '#config/game'
 
 let counter = 0
 function createPlayer(email = `jugador${++counter}@pokerlatino.test`) {
   return accountService.register({
+    username: email.split('@')[0],
     email,
     password: 'secreto123',
     birthDate: DateTime.fromISO('1990-05-20'),
   })
 }
 
-async function balance(user: User, currency: Currency) {
-  const wallet = await Wallet.query()
-    .where('user_id', user.id)
-    .where('currency', currency)
-    .firstOrFail()
+async function balance(user: User) {
+  const wallet = await Wallet.query().where('user_id', user.id).firstOrFail()
   return wallet.balance
 }
 
@@ -40,6 +36,7 @@ test.group('Juego · cuentas y billeteras', (group) => {
       client
         .post('/oauth/register')
         .form({
+          username: 'edad',
           email: 'edad@pokerlatino.test',
           password: 'secreto123',
           password_confirmation: 'secreto123',
@@ -67,13 +64,11 @@ test.group('Juego · cuentas y billeteras', (group) => {
     assert.equal(user.birthDate.toISODate(), exactly18)
   })
 
-  test('al registrarse recibe 1000 credits y una billetera USD vacía', async ({
-    client,
-    assert,
-  }) => {
+  test('al registrarse recibe una billetera con 1000 fichas', async ({ client, assert }) => {
     const res = await client
       .post('/oauth/register')
       .form({
+        username: 'nuevo',
         email: 'nuevo@pokerlatino.test',
         password: 'secreto123',
         password_confirmation: 'secreto123',
@@ -84,49 +79,66 @@ test.group('Juego · cuentas y billeteras', (group) => {
     res.assertStatus(200)
 
     const user = await User.findByOrFail('email', 'nuevo@pokerlatino.test')
-    assert.equal(await balance(user, 'credits'), 1000)
-    assert.equal(await balance(user, 'usd'), 0)
+    assert.equal(await balance(user), 1000)
+    assert.lengthOf(await Wallet.query().where('user_id', user.id), 1)
 
     const ledger = await db
       .from('wallet_transactions')
       .join('wallets', 'wallets.id', 'wallet_transactions.wallet_id')
       .where('wallets.user_id', user.id)
-      .select('wallet_transactions.*', 'wallets.currency')
+      .select('wallet_transactions.*')
     assert.lengthOf(ledger, 1)
     assert.containsSubset(ledger[0], {
       type: 'signup_bonus',
       amount: 1000,
       balance_after: 1000,
-      currency: 'credits',
+      description: 'Fichas de bienvenida',
     })
 
     const stats = await PlayerStat.query().where('user_id', user.id)
-    assert.lengthOf(stats, 2)
+    assert.lengthOf(stats, 1)
   })
 
-  test('GET /wallets devuelve ambos saldos', async ({ client }) => {
+  test('GET /wallet devuelve el saldo de fichas', async ({ client }) => {
     const user = await createPlayer()
-    const res = await client.get('/api/v1/wallets').loginAs(user)
+    const res = await client.get('/api/v1/wallet').loginAs(user)
     res.assertStatus(200)
-    res.assertBody({
-      data: [
-        { currency: 'credits', balance: 1000 },
-        { currency: 'usd', balance: 0 },
-      ],
-    })
+    res.assertBody({ data: { balance: 1000 } })
   })
 
-  test('GET /wallets/:currency/transactions pagina el historial', async ({ client, assert }) => {
+  test('GET /wallet/transactions pagina el historial', async ({ client, assert }) => {
     const user = await createPlayer()
-    const res = await client.get('/api/v1/wallets/credits/transactions').loginAs(user)
+    const res = await client.get('/api/v1/wallet/transactions').loginAs(user)
     res.assertStatus(200)
     const body = res.body() as any
     assert.lengthOf(body.data, 1)
     assert.equal(body.data[0].type, 'signup_bonus')
     assert.equal(body.metadata.total, 1)
+  })
 
-    const invalid = await client.get('/api/v1/wallets/euros/transactions').loginAs(user)
-    invalid.assertStatus(404)
+  test('no existe forma de comprar ni canjear fichas', async ({ client, assert }) => {
+    const user = await createPlayer()
+    for (const [method, url] of [
+      ['post', '/api/v1/deposits'],
+      ['post', '/api/v1/withdrawals'],
+      ['get', '/api/v1/wallets'],
+      ['get', '/api/v1/wallets/usd/transactions'],
+    ] as const) {
+      const res = await client[method](url).loginAs(user)
+      assert.equal(res.status(), 404, `${method.toUpperCase()} ${url}`)
+    }
+
+    // La base de datos tampoco admite movimientos de dinero real
+    const wallet = await Wallet.findByOrFail('user_id', user.id)
+    await assert.rejects(() =>
+      db.table('wallet_transactions').insert({
+        wallet_id: wallet.id,
+        type: 'deposit',
+        amount: 100,
+        balance_after: 1100,
+        created_at: new Date(),
+      })
+    )
   })
 
   test('las rutas del juego exigen el scope "game"', async ({ client }) => {
@@ -141,7 +153,7 @@ test.group('Juego · cuentas y billeteras', (group) => {
     const res = await client.get('/api/v1/game/config').loginAs(user)
     res.assertStatus(200)
     res.assertBodyContains({
-      data: { rake: 0, signupBonus: { credits: 1000, usd: 0 }, rooms: { maxSeats: 5 } },
+      data: { rake: 0, signupBonus: 1000, rooms: { maxSeats: 5 } },
     })
   })
 })
@@ -149,22 +161,22 @@ test.group('Juego · cuentas y billeteras', (group) => {
 test.group('Juego · salas', (group) => {
   group.each.setup(() => testUtils.db().withGlobalTransaction())
 
-  test('lista salas filtradas por moneda', async ({ client, assert }) => {
+  test('lista las salas (todas en fichas)', async ({ client, assert }) => {
     const user = await createPlayer()
-    const res = await client.get('/api/v1/rooms').qs({ currency: 'credits' }).loginAs(user)
+    const res = await client.get('/api/v1/rooms').loginAs(user)
     res.assertStatus(200)
     const rooms = (res.body() as any).data
-    assert.isAtLeast(rooms.length, 1)
-    assert.isTrue(rooms.every((r: any) => r.currency === 'credits' && r.maxSeats === 5))
+    assert.deepEqual(
+      rooms.map((r: any) => r.slug),
+      ['principiantes-1', 'clasica-1', 'high-rollers-1']
+    )
+    assert.isTrue(rooms.every((r: any) => !('currency' in r) && r.maxSeats === 5))
     assert.equal(rooms[0].seatedCount, 0)
-
-    const invalid = await client.get('/api/v1/rooms').unsafeQs({ currency: 'euros' }).loginAs(user)
-    invalid.assertStatus(422)
   })
 
   test('sentarse descuenta el buy-in y levantarse lo devuelve', async ({ client, assert }) => {
     const user = await createPlayer()
-    const room = await roomBySlug('credits-principiantes') // ciegas 5/10, buy-in 400-1000
+    const room = await roomBySlug('principiantes-1') // ciegas 5/10, buy-in 400-1000
 
     const sit = await client
       .post(`/api/v1/rooms/${room.id}/seat`)
@@ -172,7 +184,7 @@ test.group('Juego · salas', (group) => {
       .loginAs(user)
     sit.assertStatus(201)
     sit.assertBodyContains({ data: { seatNumber: 3, stack: 400, player: { id: user.id } } })
-    assert.equal(await balance(user, 'credits'), 600)
+    assert.equal(await balance(user), 600)
 
     // La sala muestra el asiento sin exponer el email
     const show = await client.get(`/api/v1/rooms/${room.id}`).loginAs(user)
@@ -182,8 +194,8 @@ test.group('Juego · salas', (group) => {
 
     const leave = await client.delete(`/api/v1/rooms/${room.id}/seat`).loginAs(user)
     leave.assertStatus(200)
-    leave.assertBody({ data: { currency: 'credits', cashedOut: 400 } })
-    assert.equal(await balance(user, 'credits'), 1000)
+    leave.assertBody({ data: { cashedOut: 400, pending: false } })
+    assert.equal(await balance(user), 1000)
 
     const types = await db
       .from('wallet_transactions')
@@ -200,7 +212,7 @@ test.group('Juego · salas', (group) => {
 
   test('valida buy-in, asiento ocupado y jugador ya sentado', async ({ client }) => {
     const [ana, beto] = [await createPlayer(), await createPlayer()]
-    const room = await roomBySlug('credits-principiantes')
+    const room = await roomBySlug('principiantes-1')
     const sit = (user: User, body: object) =>
       client.post(`/api/v1/rooms/${room.id}/seat`).json(body).loginAs(user)
 
@@ -228,7 +240,7 @@ test.group('Juego · salas', (group) => {
   })
 
   test('una sala admite máximo 5 jugadores', async ({ client }) => {
-    const room = await roomBySlug('credits-principiantes')
+    const room = await roomBySlug('principiantes-1')
     for (let i = 0; i < 5; i++) {
       const player = await createPlayer()
       const res = await client
@@ -246,33 +258,9 @@ test.group('Juego · salas', (group) => {
     sixth.assertBodyContains({ error: 'room_full' })
   })
 
-  test('las salas USD usan el saldo en dólares, no los credits', async ({ client, assert }) => {
-    const user = await createPlayer()
-    const room = await roomBySlug('usd-micro') // buy-in 80-200 centavos
-
-    const broke = await client
-      .post(`/api/v1/rooms/${room.id}/seat`)
-      .json({ buyIn: 100 })
-      .loginAs(user)
-    broke.assertStatus(422)
-    broke.assertBodyContains({ error: 'insufficient_funds' })
-    assert.equal(await balance(user, 'credits'), 1000)
-
-    const deposit = await depositService.createPending(user.id, 500)
-    await depositService.complete(deposit.id)
-
-    const sit = await client
-      .post(`/api/v1/rooms/${room.id}/seat`)
-      .json({ buyIn: 200 })
-      .loginAs(user)
-    sit.assertStatus(201)
-    assert.equal(await balance(user, 'usd'), 300)
-    assert.equal(await balance(user, 'credits'), 1000)
-  })
-
   test('no se puede levantar en medio de una mano', async ({ client }) => {
     const user = await createPlayer()
-    const room = await roomBySlug('credits-principiantes')
+    const room = await roomBySlug('principiantes-1')
     const seated = await client
       .post(`/api/v1/rooms/${room.id}/seat`)
       .json({ buyIn: 400 })
@@ -282,7 +270,6 @@ test.group('Juego · salas', (group) => {
     const hand = await Hand.create({
       roomId: room.id,
       handNumber: 1,
-      currency: 'credits',
       smallBlind: 5,
       bigBlind: 10,
       dealerSeat: 1,
@@ -292,9 +279,10 @@ test.group('Juego · salas', (group) => {
     })
     await HandPlayer.create({ handId: hand.id, userId: user.id, seatNumber: 1, startingStack: 400 })
 
+    // Con una mano en curso queda pendiente: se levanta al terminarla
     const res = await client.delete(`/api/v1/rooms/${room.id}/seat`).loginAs(user)
-    res.assertStatus(409)
-    res.assertBodyContains({ error: 'hand_in_progress' })
+    res.assertStatus(202)
+    res.assertBodyContains({ data: { pending: true, cashedOut: 0 } })
   })
 
   test('sala inexistente y levantarse sin estar sentado', async ({ client }) => {
@@ -303,41 +291,7 @@ test.group('Juego · salas', (group) => {
     missing.assertStatus(404)
     const res = await client.delete('/api/v1/rooms/999999/seat').loginAs(user)
     res.assertStatus(404)
-    res.assertBodyContains({ error: 'not_seated' })
-  })
-})
-
-test.group('Juego · recargas', (group) => {
-  group.each.setup(() => testUtils.db().withGlobalTransaction())
-
-  test('POST /deposits crea una recarga pendiente sin acreditar saldo', async ({
-    client,
-    assert,
-  }) => {
-    const user = await createPlayer()
-
-    const tooSmall = await client.post('/api/v1/deposits').json({ amount: 100 }).loginAs(user)
-    tooSmall.assertStatus(422)
-
-    const res = await client.post('/api/v1/deposits').json({ amount: 2500 }).loginAs(user)
-    res.assertStatus(201)
-    res.assertBodyContains({ data: { amount: 2500, currency: 'usd', status: 'pending' } })
-    assert.equal(await balance(user, 'usd'), 0)
-  })
-
-  test('completar una recarga acredita una sola vez (idempotente)', async ({ assert }) => {
-    const user = await createPlayer()
-    const deposit = await depositService.createPending(user.id, 2500)
-
-    await depositService.complete(deposit.id, 'pago-123')
-    await depositService.complete(deposit.id, 'pago-123')
-
-    assert.equal(await balance(user, 'usd'), 2500)
-    const stats = await PlayerStat.query()
-      .where('user_id', user.id)
-      .where('currency', 'usd')
-      .firstOrFail()
-    assert.equal(stats.totalDeposited, 2500)
+    res.assertBodyContains({ error: 'room_not_found' })
   })
 })
 
@@ -349,11 +303,11 @@ test.group('Juego · concurrencia', () => {
     const user = await createPlayer('concurrencia@pokerlatino.test')
     try {
       const [a, b] = await Promise.all([
-        roomBySlug('credits-principiantes'),
-        roomBySlug('credits-clasica'), // buy-in 800-2000
+        roomBySlug('principiantes-1'),
+        roomBySlug('clasica-1'), // buy-in 800-2000
       ])
 
-      // 1000 credits: 1000 + 800 no alcanza para ambas
+      // 1000 fichas: 1000 + 800 no alcanza para ambas
       const [r1, r2] = await Promise.all([
         client.post(`/api/v1/rooms/${a.id}/seat`).json({ buyIn: 1000 }).loginAs(user),
         client.post(`/api/v1/rooms/${b.id}/seat`).json({ buyIn: 800 }).loginAs(user),
@@ -362,9 +316,9 @@ test.group('Juego · concurrencia', () => {
       const statuses = [r1.status(), r2.status()].sort()
       assert.deepEqual(statuses, [201, 422])
 
-      // Invariante: saldo + fichas en mesa = 1000 (no se crea ni se pierde dinero)
+      // Invariante: saldo + fichas en mesa = 1000 (no se crean ni se pierden fichas)
       const seats = await db.from('room_seats').where('user_id', user.id).sum('stack as total')
-      assert.equal((await balance(user, 'credits')) + Number(seats[0].total), 1000)
+      assert.equal((await balance(user)) + Number(seats[0].total), 1000)
     } finally {
       await user.delete()
     }

@@ -1,0 +1,16 @@
+{
+  "data": {
+    "signupBonus": 1000,
+    "rake": 0,
+    "rooms": {
+      "maxSeats": 5,
+      "actionTimeoutSeconds": 30,
+      "gameTypes": [
+        "texas_holdem"
+      ],
+      "bettingStructures": [
+        "no_limit"
+      ]
+    }
+  }
+}

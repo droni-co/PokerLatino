@@ -1,1 +1,12 @@
 include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  exclude:
+    - build/**
+    - android/**
+    - ios/**
+    - web/**
+  errors:
+    # Flutter 3.47 deprecó `package:flutter/material.dart` en favor de `material_ui`.
+    # Se migrará cuando el paquete se estabilice; mientras tanto no ensucia el análisis.
+    deprecated_member_use: ignore

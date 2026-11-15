@@ -7,11 +7,9 @@ export default class ConfigController {
   async show() {
     return {
       data: {
-        currencies: gameConfig.currencies,
         signupBonus: gameConfig.signupBonus,
         rake: gameConfig.rake,
         rooms: gameConfig.rooms,
-        deposits: gameConfig.deposits,
       },
     }
   }

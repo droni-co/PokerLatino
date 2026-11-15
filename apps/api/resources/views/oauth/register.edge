@@ -4,9 +4,18 @@
   <form method="POST" action="/oauth/register" novalidate>
     {{ csrfField() }}
 
+    <label for="username">Nombre de usuario</label>
+    <input id="username" type="text" name="username" value="{{ flashMessages.get('username', '') }}"
+      autocomplete="username" minlength="3" maxlength="20"
+      required autofocus>
+    <div class="hint">Así te verán en las mesas. 3 a 20 caracteres, sin espacios.</div>
+    @inputError('username')
+      <div class="field-error">{{ $messages[0] }}</div>
+    @end
+
     <label for="email">Email</label>
     <input id="email" type="email" name="email" value="{{ flashMessages.get('email', '') }}"
-      autocomplete="email" required autofocus>
+      autocomplete="email" required>
     @inputError('email')
       <div class="field-error">{{ $messages[0] }}</div>
     @end

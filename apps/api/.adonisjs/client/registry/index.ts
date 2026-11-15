@@ -80,29 +80,41 @@ const routes = {
     tokens: [[0,"api"],[0,"v1"],[0,"me"]],
     types: placeholder as Registry['me']['types'],
   },
+  'me.update': {
+    methods: ["PATCH"],
+    pattern: '/api/v1/me',
+    tokens: [[0,"api"],[0,"v1"],[0,"me"]],
+    types: placeholder as Registry['me.update']['types'],
+  },
   'game.config': {
     methods: ["GET","HEAD"],
     pattern: '/api/v1/game/config',
     tokens: [[0,"api"],[0,"v1"],[0,"game"],[0,"config"]],
     types: placeholder as Registry['game.config']['types'],
   },
-  'wallets.index': {
+  'wallet.show': {
     methods: ["GET","HEAD"],
-    pattern: '/api/v1/wallets',
-    tokens: [[0,"api"],[0,"v1"],[0,"wallets"]],
-    types: placeholder as Registry['wallets.index']['types'],
+    pattern: '/api/v1/wallet',
+    tokens: [[0,"api"],[0,"v1"],[0,"wallet"]],
+    types: placeholder as Registry['wallet.show']['types'],
   },
-  'wallets.transactions': {
+  'wallet.transactions': {
     methods: ["GET","HEAD"],
-    pattern: '/api/v1/wallets/:currency/transactions',
-    tokens: [[0,"api"],[0,"v1"],[0,"wallets"],[1,"currency"],[0,"transactions"]],
-    types: placeholder as Registry['wallets.transactions']['types'],
+    pattern: '/api/v1/wallet/transactions',
+    tokens: [[0,"api"],[0,"v1"],[0,"wallet"],[0,"transactions"]],
+    types: placeholder as Registry['wallet.transactions']['types'],
   },
-  'deposits.store': {
+  'levels.index': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/v1/levels',
+    tokens: [[0,"api"],[0,"v1"],[0,"levels"]],
+    types: placeholder as Registry['levels.index']['types'],
+  },
+  'levels.seat': {
     methods: ["POST"],
-    pattern: '/api/v1/deposits',
-    tokens: [[0,"api"],[0,"v1"],[0,"deposits"]],
-    types: placeholder as Registry['deposits.store']['types'],
+    pattern: '/api/v1/levels/:id/seat',
+    tokens: [[0,"api"],[0,"v1"],[0,"levels"],[1,"id"],[0,"seat"]],
+    types: placeholder as Registry['levels.seat']['types'],
   },
   'rooms.index': {
     methods: ["GET","HEAD"],
@@ -139,6 +151,24 @@ const routes = {
     pattern: '/api/v1/rooms/:id/actions',
     tokens: [[0,"api"],[0,"v1"],[0,"rooms"],[1,"id"],[0,"actions"]],
     types: placeholder as Registry['rooms.act']['types'],
+  },
+  'rooms.show_cards': {
+    methods: ["POST"],
+    pattern: '/api/v1/rooms/:id/show',
+    tokens: [[0,"api"],[0,"v1"],[0,"rooms"],[1,"id"],[0,"show"]],
+    types: placeholder as Registry['rooms.show_cards']['types'],
+  },
+  'rooms.chat': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/v1/rooms/:id/chat',
+    tokens: [[0,"api"],[0,"v1"],[0,"rooms"],[1,"id"],[0,"chat"]],
+    types: placeholder as Registry['rooms.chat']['types'],
+  },
+  'rooms.chat.store': {
+    methods: ["POST"],
+    pattern: '/api/v1/rooms/:id/chat',
+    tokens: [[0,"api"],[0,"v1"],[0,"rooms"],[1,"id"],[0,"chat"]],
+    types: placeholder as Registry['rooms.chat.store']['types'],
   },
   'me.stats': {
     methods: ["GET","HEAD"],

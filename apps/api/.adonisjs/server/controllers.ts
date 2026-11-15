@@ -5,8 +5,9 @@
 
 export const controllers = {
   game: {
+    Chat: () => import('#controllers/game/chat_controller'),
     Config: () => import('#controllers/game/config_controller'),
-    Deposits: () => import('#controllers/game/deposits_controller'),
+    Levels: () => import('#controllers/game/levels_controller'),
     Rooms: () => import('#controllers/game/rooms_controller'),
     Stats: () => import('#controllers/game/stats_controller'),
     Tables: () => import('#controllers/game/tables_controller'),

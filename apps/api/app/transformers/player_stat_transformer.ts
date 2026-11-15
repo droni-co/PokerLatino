@@ -5,7 +5,6 @@ export default class PlayerStatTransformer extends BaseTransformer<PlayerStat> {
   toObject() {
     const s = this.resource
     return {
-      currency: s.currency,
       handsPlayed: s.handsPlayed,
       handsWon: s.handsWon,
       winRate: Math.round(s.winRate * 10_000) / 10_000,
@@ -14,8 +13,6 @@ export default class PlayerStatTransformer extends BaseTransformer<PlayerStat> {
       totalWon: s.totalWon,
       net: s.net,
       biggestPotWon: s.biggestPotWon,
-      totalDeposited: s.totalDeposited,
-      totalWithdrawn: s.totalWithdrawn,
     }
   }
 }

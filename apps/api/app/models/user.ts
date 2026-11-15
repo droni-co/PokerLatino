@@ -22,9 +22,9 @@ export default class User extends compose(UserSchema, withAuthFinder(hash)) {
 
   /**
    * Nombre visible para otros jugadores. Nunca se expone el email en las mesas.
-   * (Se reemplazará por un nickname elegido por el jugador.)
+   * Las cuentas anteriores al nombre de usuario se muestran como "Jugador #id".
    */
   get displayName() {
-    return `Jugador #${this.id}`
+    return this.username ?? `Jugador #${this.id}`
   }
 }
