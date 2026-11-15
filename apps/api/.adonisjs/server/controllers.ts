@@ -7,7 +7,10 @@ export const controllers = {
   game: {
     Chat: () => import('#controllers/game/chat_controller'),
     Config: () => import('#controllers/game/config_controller'),
+    Friends: () => import('#controllers/game/friends_controller'),
+    Invitations: () => import('#controllers/game/invitations_controller'),
     Levels: () => import('#controllers/game/levels_controller'),
+    Progress: () => import('#controllers/game/progress_controller'),
     Referrals: () => import('#controllers/game/referrals_controller'),
     Rooms: () => import('#controllers/game/rooms_controller'),
     Stats: () => import('#controllers/game/stats_controller'),

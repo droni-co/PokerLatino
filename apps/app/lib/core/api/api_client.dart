@@ -4,7 +4,9 @@ import '../auth/auth_service.dart';
 import '../config.dart';
 import '../models/models.dart';
 import '../models/table_state.dart';
+import '../models/progress.dart';
 import '../models/referral.dart';
+import '../models/social.dart';
 import '../models/tournament.dart';
 import 'api_exception.dart';
 
@@ -67,6 +69,19 @@ class ApiClient {
         options: Options(method: method),
       );
       return parse(response.data!['data']);
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
+  }
+
+  /// Petición sin datos de respuesta (p. ej. 204 No Content)
+  Future<void> _sendEmpty(String method, String path, {Object? body}) async {
+    try {
+      await _dio.request<Object?>(
+        path,
+        data: body,
+        options: Options(method: method),
+      );
     } on DioException catch (e) {
       throw ApiException.fromDio(e);
     }
@@ -163,6 +178,49 @@ class ApiClient {
 
   Future<ChatMessage> sendChat(int roomId, String body) =>
       _send('POST', '/rooms/$roomId/chat', (d) => ChatMessage.fromJson(d as Json), body: {'body': body});
+
+  /*
+  | Amigos e invitaciones a la mesa
+  */
+
+  /// Solicitudes sin responder e invitaciones a mesas (se consulta cada pocos segundos)
+  Future<Inbox> inbox() => _get('/inbox', (d) => Inbox.fromJson(d as Json));
+
+  /// Tus amigos y solicitudes. Con [roomId] marca a quién ya invitaste a esa mesa.
+  Future<FriendsList> friends({int? roomId}) =>
+      _get('/friends', (d) => FriendsList.fromJson(d as Json), query: {'roomId': ?roomId});
+
+  Future<List<PlayerSearchResult>> searchPlayers(String text) =>
+      _get('/players', (d) => [for (final p in d as List) PlayerSearchResult.fromJson(p as Json)], query: {'q': text});
+
+  /// Devuelve la relación resultante (`outgoing`, o `friend` si él ya te la había enviado)
+  Future<Relation> sendFriendRequest(int playerId) =>
+      _send('POST', '/friends/requests', (d) => Relation.parse((d as Json)['relation']), body: {'playerId': playerId});
+
+  Future<void> acceptFriendRequest(int requestId) => _sendEmpty('POST', '/friends/requests/$requestId/accept');
+
+  /// Rechazar una solicitud recibida o cancelar una enviada
+  Future<void> dismissFriendRequest(int requestId) => _sendEmpty('DELETE', '/friends/requests/$requestId');
+
+  Future<void> removeFriend(int playerId) => _sendEmpty('DELETE', '/friends/$playerId');
+
+  Future<void> inviteToTable(int roomId, int playerId) =>
+      _sendEmpty('POST', '/rooms/$roomId/invitations', body: {'playerId': playerId});
+
+  /// Devuelve la mesa a la que ir
+  Future<int> acceptInvitation(int id) =>
+      _send('POST', '/invitations/$id/accept', (d) => ((d as Json)['roomId'] as num).toInt());
+
+  Future<void> declineInvitation(int id) => _sendEmpty('DELETE', '/invitations/$id');
+
+  /// Tu nivel, XP y todos los logros con tu avance
+  Future<PlayerProgress> myProgress() => _get('/me/progress', (d) => PlayerProgress.fromJson(d as Json));
+
+  /// La app ya anunció los logros nuevos y el nivel
+  Future<void> markProgressSeen() => _sendEmpty('POST', '/me/progress/seen');
+
+  /// Tarjeta pública de un jugador: nivel, estadísticas, logros y tu relación con él
+  Future<PlayerCard> playerCard(int playerId) => _get('/players/$playerId', (d) => PlayerCard.fromJson(d as Json));
 
   Future<PlayerStat> stats() => _get('/me/stats', (d) => PlayerStat.fromJson(d as Json));
 }

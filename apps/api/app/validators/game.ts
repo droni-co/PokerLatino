@@ -31,3 +31,15 @@ export const tableActionValidator = vine.create({
   amount: vine.number().withoutDecimals().positive().optional(),
   chatAfter: vine.number().withoutDecimals().min(0).optional(),
 })
+
+export const playerSearchValidator = vine.create({
+  q: vine.string().trim().minLength(2).maxLength(30),
+})
+
+export const friendRequestValidator = vine.create({
+  playerId: vine.number().withoutDecimals().positive(),
+})
+
+export const friendsListValidator = vine.create({
+  roomId: vine.number().withoutDecimals().positive().optional(),
+})

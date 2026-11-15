@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/models/table_state.dart';
 import '../../../core/money.dart';
 import '../../../core/theme.dart';
+import '../../progress/progress_widgets.dart';
 import 'player_avatar.dart';
 import 'winner_effects.dart';
 
@@ -87,6 +88,12 @@ class SeatView extends StatelessWidget {
             if (seat.isTurn)
               TurnRing(deadline: hand?.turnDeadline, totalSeconds: actionTimeoutSeconds, size: ring),
             PlayerAvatar(playerId: seat.playerId, avatar: seat.avatar, size: a, isMe: isMe, dimmed: out),
+            // Nivel de experiencia, abajo a la izquierda del avatar
+            Positioned(
+              left: (ring - a) / 2 - a * 0.08,
+              bottom: (ring - a) / 2 - a * 0.02,
+              child: LevelBadge(level: seat.level, size: a * 0.36),
+            ),
             if (isWinner)
               Positioned(bottom: -a * 0.02, child: WinnerRibbon(scale: s, animate: celebrate)),
             if (wonAmount != null && celebrate)
@@ -268,24 +275,29 @@ class _FloatingWin extends StatelessWidget {
   }
 }
 
-/// Silla libre: con "+" si puedes sentarte
+/// Silla libre: con "+" si puedes sentarte, o para invitar a un amigo si ya estás sentado
 class EmptySeat extends StatelessWidget {
-  const EmptySeat({super.key, required this.seatNumber, required this.avatarSize, this.onSit});
+  const EmptySeat({super.key, required this.seatNumber, required this.avatarSize, this.onSit, this.onInvite});
   final int seatNumber;
   final double avatarSize;
   final VoidCallback? onSit;
+
+  /// Sentado en la mesa: tocar la silla libre abre "Invitar amigos"
+  final VoidCallback? onInvite;
 
   @override
   Widget build(BuildContext context) {
     final a = avatarSize;
     final canSit = onSit != null;
+    final canInvite = !canSit && onInvite != null;
+    final label = canSit ? 'Sentarse' : (canInvite ? 'Invitar a un amigo' : 'Libre');
     return Tooltip(
-      message: canSit ? 'Sentarse' : 'Libre',
+      message: label,
       child: Semantics(
-        button: canSit,
-        label: canSit ? 'Sentarse' : 'Libre',
+        button: canSit || canInvite,
+        label: label,
         child: InkWell(
-          onTap: onSit,
+          onTap: onSit ?? onInvite,
           customBorder: const CircleBorder(),
           child: Container(
             width: a * 0.92,
@@ -302,9 +314,9 @@ class EmptySeat extends StatelessWidget {
                   : null,
             ),
             child: Icon(
-              canSit ? Icons.add : Icons.event_seat_outlined,
-              color: canSit ? PokerColors.gold : Colors.white24,
-              size: a * 0.42,
+              canSit ? Icons.add : (canInvite ? Icons.person_add_alt_1 : Icons.event_seat_outlined),
+              color: canSit ? PokerColors.gold : (canInvite ? Colors.white54 : Colors.white24),
+              size: a * (canInvite ? 0.38 : 0.42),
             ),
           ),
         ),

@@ -6,6 +6,7 @@ import '../../core/models/models.dart';
 import '../../core/money.dart';
 import '../../core/providers.dart';
 import '../../core/theme.dart';
+import '../progress/progress_widgets.dart';
 
 class StatsPage extends ConsumerWidget {
   const StatsPage({super.key});
@@ -14,7 +15,10 @@ class StatsPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final stats = ref.watch(statsProvider);
     return RefreshIndicator(
-      onRefresh: () => ref.refresh(statsProvider.future),
+      onRefresh: () {
+        ref.invalidate(myProgressProvider);
+        return ref.refresh(statsProvider.future);
+      },
       child: stats.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => ListView(
@@ -26,7 +30,14 @@ class StatsPage extends ConsumerWidget {
             Center(
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 560),
-                child: _StatCard(stat: s),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const MyProgressPanel(),
+                    const SizedBox(height: 4),
+                    _StatCard(stat: s),
+                  ],
+                ),
               ),
             ),
           ],

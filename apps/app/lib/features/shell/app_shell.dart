@@ -6,6 +6,7 @@ import '../../core/brand.dart';
 import '../../core/money.dart';
 import '../../core/providers.dart';
 import '../../core/theme.dart';
+import '../progress/progress_widgets.dart';
 import '../table/widgets/player_avatar.dart';
 
 /// Navegación principal: barra inferior en teléfono, rail lateral en pantallas anchas
@@ -19,7 +20,7 @@ class AppShell extends ConsumerWidget {
     (path: '/lobby', icon: Icons.casino_outlined, selected: Icons.casino, label: 'Salas'),
     (path: '/tournaments', icon: Icons.emoji_events_outlined, selected: Icons.emoji_events, label: 'Torneos'),
     (path: '/wallet', icon: Icons.toll_outlined, selected: Icons.toll, label: 'Fichas'),
-    (path: '/stats', icon: Icons.insights_outlined, selected: Icons.insights, label: 'Estadísticas'),
+    (path: '/stats', icon: Icons.military_tech_outlined, selected: Icons.military_tech, label: 'Logros'),
     (path: '/profile', icon: Icons.person_outline, selected: Icons.person, label: 'Perfil'),
   ];
 
@@ -27,7 +28,8 @@ class AppShell extends ConsumerWidget {
     if (location.startsWith('/tournaments')) return 1;
     if (location.startsWith('/wallet')) return 2;
     if (location.startsWith('/stats')) return 3;
-    if (location.startsWith('/profile')) return 4;
+    // Amigos se abre desde la barra superior; vive junto al perfil
+    if (location.startsWith('/profile') || location.startsWith('/friends')) return 4;
     return 0;
   }
 
@@ -47,7 +49,14 @@ class AppShell extends ConsumerWidget {
       titleSpacing: 12,
       flexibleSpace: const _BarBackground(top: true),
       title: LogoMark(height: short ? 40 : 50),
-      actions: const [_Balances(), SizedBox(width: 10), _AccountMenu(), SizedBox(width: 10)],
+      actions: const [
+        _Balances(),
+        SizedBox(width: 6),
+        _FriendsButton(),
+        SizedBox(width: 4),
+        _AccountMenu(),
+        SizedBox(width: 10),
+      ],
     );
 
     if (wide) {
@@ -173,21 +182,49 @@ class _Balances extends ConsumerWidget {
   }
 }
 
+/// Amigos, con el número de solicitudes sin responder
+class _FriendsButton extends ConsumerWidget {
+  const _FriendsButton();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final pending = ref.watch(inboxProvider.select((i) => i.value?.friendRequests ?? 0));
+    return IconButton(
+      key: const ValueKey('friends-button'),
+      tooltip: pending > 0 ? 'Amigos: $pending solicitud${pending == 1 ? '' : 'es'}' : 'Amigos',
+      onPressed: () => context.go('/friends'),
+      icon: Badge(isLabelVisible: pending > 0, label: Text('$pending'), child: const Icon(Icons.people_alt_outlined)),
+    );
+  }
+}
+
 class _AccountMenu extends ConsumerWidget {
   const _AccountMenu();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final me = ref.watch(authControllerProvider).value;
+    final level = ref.watch(inboxProvider.select((i) => i.value?.progress.level));
     return PopupMenuButton<String>(
       tooltip: 'Cuenta',
       padding: EdgeInsets.zero,
       icon: me == null
           ? const Icon(Icons.account_circle_outlined)
-          : PlayerAvatar(playerId: me.id, avatar: me.avatar, size: 38, isMe: true),
+          : SizedBox(
+              width: 38,
+              height: 38,
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  PlayerAvatar(playerId: me.id, avatar: me.avatar, size: 38, isMe: true),
+                  if (level != null) Positioned(left: -4, bottom: -4, child: LevelBadge(level: level, size: 18)),
+                ],
+              ),
+            ),
       onSelected: (value) {
         if (value == 'logout') ref.read(authControllerProvider.notifier).logout();
         if (value == 'profile') context.go('/profile');
+        if (value == 'friends') context.go('/friends');
       },
       itemBuilder: (_) => [
         PopupMenuItem(
@@ -221,6 +258,10 @@ class _AccountMenu extends ConsumerWidget {
         const PopupMenuItem(
           value: 'profile',
           child: Row(children: [Icon(Icons.person_outline, size: 18), SizedBox(width: 10), Text('Mi perfil')]),
+        ),
+        const PopupMenuItem(
+          value: 'friends',
+          child: Row(children: [Icon(Icons.people_outline, size: 18), SizedBox(width: 10), Text('Amigos')]),
         ),
         const PopupMenuItem(
           value: 'logout',

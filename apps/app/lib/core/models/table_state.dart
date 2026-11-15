@@ -191,6 +191,7 @@ class TableSeat {
     this.leaving = false,
     this.missedHands = 0,
     this.avatar,
+    this.level = 1,
   });
 
   final int seatNumber;
@@ -215,6 +216,9 @@ class TableSeat {
   /// Manos seguidas en que se le agotó el tiempo; al llegar al límite el servidor lo levanta
   final int missedHands;
 
+  /// Nivel de experiencia (se muestra junto al avatar)
+  final int level;
+
   factory TableSeat.fromJson(Json json) {
     final player = json['player'] as Json;
     return TableSeat(
@@ -231,6 +235,7 @@ class TableSeat {
       holeCards: json['holeCards'] == null ? null : _cards(json['holeCards']),
       leaving: json['leaving'] as bool? ?? false,
       missedHands: _int(json['missedHands'] ?? 0),
+      level: _int(player['level'] ?? 1),
     );
   }
 }

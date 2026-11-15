@@ -97,6 +97,33 @@ router
         router.post('rooms/:id/chat', [controllers.game.Chat, 'store']).as('rooms.chat.store')
 
         router.get('me/stats', [controllers.game.Stats, 'show']).as('me.stats')
+        router.get('me/progress', [controllers.game.Progress, 'show']).as('me.progress')
+        router.post('me/progress/seen', [controllers.game.Progress, 'seen']).as('me.progress.seen')
+        router.get('players/:id', [controllers.game.Progress, 'player']).as('players.show')
+
+        // Amigos e invitaciones a la mesa
+        router.get('inbox', [controllers.game.Invitations, 'inbox']).as('inbox')
+        router.get('players', [controllers.game.Friends, 'search']).as('players.search')
+        router.get('friends', [controllers.game.Friends, 'index']).as('friends.index')
+        router.delete('friends/:id', [controllers.game.Friends, 'destroy']).as('friends.destroy')
+        router
+          .post('friends/requests', [controllers.game.Friends, 'request'])
+          .as('friends.requests.store')
+        router
+          .post('friends/requests/:id/accept', [controllers.game.Friends, 'accept'])
+          .as('friends.requests.accept')
+        router
+          .delete('friends/requests/:id', [controllers.game.Friends, 'dismiss'])
+          .as('friends.requests.dismiss')
+        router
+          .post('rooms/:id/invitations', [controllers.game.Invitations, 'store'])
+          .as('rooms.invitations.store')
+        router
+          .post('invitations/:id/accept', [controllers.game.Invitations, 'accept'])
+          .as('invitations.accept')
+        router
+          .delete('invitations/:id', [controllers.game.Invitations, 'decline'])
+          .as('invitations.decline')
 
         router.get('tournaments', [controllers.game.Tournaments, 'index']).as('tournaments.index')
         router.get('tournaments/:id', [controllers.game.Tournaments, 'show']).as('tournaments.show')

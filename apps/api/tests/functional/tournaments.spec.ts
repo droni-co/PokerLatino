@@ -7,13 +7,13 @@ import TournamentEntry from '#models/tournament_entry'
 import Room from '#models/room'
 import RoomSeat from '#models/room_seat'
 import Hand from '#models/hand'
-import Wallet from '#models/wallet'
 import PlayerStat from '#models/player_stat'
 import WalletTransaction from '#models/wallet_transaction'
 import accountService from '#services/game/account_service'
 import tournamentService from '#services/game/tournament_service'
 import presenceService from '#services/game/presence_service'
 import tableManager from '#game/table_manager'
+import { balanceWithoutRewards } from '#tests/helpers/wallet'
 
 let counter = 0
 function createPlayer() {
@@ -57,9 +57,9 @@ async function registerMany(tournament: Tournament, count: number) {
   return players
 }
 
-async function balance(user: User) {
-  const wallet = await Wallet.findByOrFail('user_id', user.id)
-  return wallet.balance
+/** Saldo sin recompensas de logros y niveles */
+function balance(user: User) {
+  return balanceWithoutRewards(user.id)
 }
 const tables = (tournamentId: number) =>
   Room.query().where('tournament_id', tournamentId).preload('seats').orderBy('table_number')

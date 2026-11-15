@@ -6,7 +6,9 @@ import 'api/api_client.dart';
 import 'auth/auth_service.dart';
 import 'auth/token_storage.dart';
 import 'models/models.dart';
+import 'models/progress.dart';
 import 'models/referral.dart';
+import 'models/social.dart';
 import 'models/tournament.dart';
 
 final tokenStorageProvider = Provider<TokenStorage>((ref) => SecureTokenStorage());
@@ -114,3 +116,43 @@ final tournamentProvider = FutureProvider.autoDispose.family<TournamentDetail, i
   ref.onDispose(timer.cancel);
   return ref.watch(apiClientProvider).tournament(id);
 });
+
+/*
+| Amigos e invitaciones a la mesa
+*/
+
+/// Cada cuánto se consulta el buzón (solicitudes e invitaciones a mesas)
+const inboxRefresh = Duration(seconds: 10);
+
+/// Buzón: lo escucha el aviso de invitaciones de toda la app, que lo mantiene al día
+final inboxProvider = FutureProvider.autoDispose<Inbox>((ref) {
+  final timer = Timer(inboxRefresh, ref.invalidateSelf);
+  ref.onDispose(timer.cancel);
+  return ref.watch(apiClientProvider).inbox();
+});
+
+/// Tus amigos (conectados, en qué mesa) y solicitudes. Se actualiza mientras se mira.
+final friendsProvider = FutureProvider.autoDispose<FriendsList>((ref) {
+  final timer = Timer(const Duration(seconds: 15), ref.invalidateSelf);
+  ref.onDispose(timer.cancel);
+  return ref.watch(apiClientProvider).friends();
+});
+
+/// Amigos vistos desde una mesa: marca a quién ya invitaste a ella
+final roomFriendsProvider = FutureProvider.autoDispose.family<FriendsList, int>((ref, roomId) {
+  final timer = Timer(const Duration(seconds: 10), ref.invalidateSelf);
+  ref.onDispose(timer.cancel);
+  return ref.watch(apiClientProvider).friends(roomId: roomId);
+});
+
+/*
+| Experiencia y logros
+*/
+
+/// Tu nivel y logros con tu avance
+final myProgressProvider = FutureProvider.autoDispose<PlayerProgress>((ref) => ref.watch(apiClientProvider).myProgress());
+
+/// Tarjeta de un jugador (nivel, logros, relación)
+final playerCardProvider = FutureProvider.autoDispose.family<PlayerCard, int>(
+  (ref, playerId) => ref.watch(apiClientProvider).playerCard(playerId),
+);

@@ -3,6 +3,7 @@ import db from '@adonisjs/lucid/services/db'
 import User from '#models/user'
 import walletService from '#services/game/wallet_service'
 import referralService from '#services/game/referral_service'
+import progressService from '#services/game/progress_service'
 
 export class AccountService {
   /**
@@ -19,12 +20,20 @@ export class AccountService {
     /** Invitación: código de quien invita e IP del registro (antiabuso) */
     referral?: { code: string; ip: string | null }
   ) {
-    return db.transaction(async (trx) => {
-      const user = await User.create(input, { client: trx })
-      await walletService.provisionUser(trx, user.id)
-      if (referral?.code) await referralService.apply(trx, user, referral.code, referral.ip)
-      return user
+    const { user, invitation } = await db.transaction(async (trx) => {
+      const created = await User.create(input, { client: trx })
+      await walletService.provisionUser(trx, created.id)
+      await progressService.create(trx, created.id)
+      const applied = referral?.code
+        ? await referralService.apply(trx, created, referral.code, referral.ip)
+        : null
+      return { user: created, invitation: applied }
     })
+    // Logros de invitar ("Embajador"…) para quien invitó
+    if (invitation && invitation.status !== 'blocked') {
+      await progressService.evaluateQuietly(invitation.referrerId)
+    }
+    return user
   }
 }
 

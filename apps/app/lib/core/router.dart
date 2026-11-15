@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../features/auth/login_page.dart';
+import '../features/friends/friends_page.dart';
 import '../features/lobby/lobby_page.dart';
 import '../features/profile/profile_page.dart';
 import '../features/shell/app_shell.dart';
@@ -49,12 +50,15 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/wallet', builder: (_, _) => const WalletPage()),
           GoRoute(path: '/stats', builder: (_, _) => const StatsPage()),
           GoRoute(path: '/profile', builder: (_, _) => const ProfilePage()),
+          GoRoute(path: '/friends', builder: (_, _) => const FriendsPage()),
         ],
       ),
       // La mesa ocupa toda la pantalla (sin navegación inferior)
       GoRoute(
         path: '/rooms/:id',
-        builder: (_, state) => TablePage(roomId: int.parse(state.pathParameters['id']!)),
+        // ?sit=1 (al aceptar una invitación): abre directo la entrada a la mesa
+        builder: (_, state) =>
+            TablePage(roomId: int.parse(state.pathParameters['id']!), autoSit: state.uri.queryParameters['sit'] == '1'),
       ),
     ],
   );

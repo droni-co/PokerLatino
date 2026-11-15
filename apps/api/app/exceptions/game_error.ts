@@ -28,6 +28,16 @@ export type GameErrorCode =
   | 'not_registered'
   | 'tournament_table'
   | 'rescue_unavailable'
+  | 'player_not_found'
+  | 'invalid_friend_request'
+  | 'already_friends'
+  | 'friend_request_exists'
+  | 'friend_request_not_found'
+  | 'friend_limit'
+  | 'not_friends'
+  | 'already_invited'
+  | 'invitation_not_found'
+  | 'invitation_expired'
 
 const STATUS: Record<GameErrorCode, number> = {
   room_not_found: 404,
@@ -56,6 +66,16 @@ const STATUS: Record<GameErrorCode, number> = {
   not_registered: 404,
   tournament_table: 409,
   rescue_unavailable: 409,
+  player_not_found: 404,
+  invalid_friend_request: 422,
+  already_friends: 409,
+  friend_request_exists: 409,
+  friend_request_not_found: 404,
+  friend_limit: 409,
+  not_friends: 409,
+  already_invited: 409,
+  invitation_not_found: 404,
+  invitation_expired: 409,
 }
 
 /**

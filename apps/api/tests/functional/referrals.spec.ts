@@ -11,6 +11,7 @@ import accountService from '#services/game/account_service'
 import referralService, { normalizeEmail } from '#services/game/referral_service'
 import roomService from '#services/game/room_service'
 import tableManager from '#game/table_manager'
+import { balanceWithoutRewards } from '#tests/helpers/wallet'
 
 let counter = 0
 function createPlayer(options: { email?: string; code?: string; ip?: string } = {}) {
@@ -26,9 +27,9 @@ function createPlayer(options: { email?: string; code?: string; ip?: string } = 
   )
 }
 
-async function balance(user: User) {
-  const wallet = await Wallet.findByOrFail('user_id', user.id)
-  return wallet.balance
+/** Saldo sin recompensas de logros y niveles */
+function balance(user: User) {
+  return balanceWithoutRewards(user.id)
 }
 
 async function setBalance(user: User, amount: number) {

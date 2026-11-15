@@ -12,6 +12,7 @@ import roomService from '#services/game/room_service'
 import chatService from '#services/game/chat_service'
 import presenceService from '#services/game/presence_service'
 import tournamentService from '#services/game/tournament_service'
+import progressService from '#services/game/progress_service'
 import gameConfig from '#config/game'
 
 const cancelled = await tableManager.recoverInterruptedHands()
@@ -58,3 +59,23 @@ const tournaments = setInterval(async () => {
   }
 }, gameConfig.tournaments.tickSeconds * 1000)
 tournaments.unref()
+
+/**
+ * Logros: repasa en segundo plano a los jugadores anteriores a los logros (su historial
+ * les da XP, niveles y logros con sus fichas). Solo hace algo la primera vez.
+ */
+void (async () => {
+  try {
+    let total = 0
+    for (
+      let batch = await progressService.syncPending();
+      batch > 0;
+      batch = await progressService.syncPending()
+    ) {
+      total += batch
+    }
+    if (total > 0) logger.info(`Logros: ${total} jugador(es) puestos al día con su historial`)
+  } catch (error) {
+    logger.error({ err: error }, 'No se pudieron poner al día los logros')
+  }
+})()

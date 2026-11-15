@@ -11,6 +11,8 @@ export type WalletTransactionType =
   | 'referral_reward'
   | 'referral_bonus'
   | 'rescue'
+  | 'achievement_reward'
+  | 'level_reward'
 
 export default class WalletTransaction extends WalletTransactionSchema {
   declare id: number

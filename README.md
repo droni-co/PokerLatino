@@ -252,6 +252,55 @@ Fichas y al levantarte de la mesa sin fichas. Todo se ajusta en `config/game.ts`
 | `GET /api/v1/wallet/rescue` | `{ amount, threshold, eligible, available, nextAt }` |
 | `POST /api/v1/wallet/rescue` | Reclamar el rescate (`409 rescue_unavailable` si no toca) |
 
+### Amigos e invitaciones a la mesa
+
+Los jugadores se buscan por nombre de usuario (o tocando su avatar en la mesa) y se envían solicitudes de
+amistad; el otro las acepta o rechaza. Si los dos se envían solicitud, quedan como amigos. Rechazar, cancelar o
+eliminar borra la relación (se puede volver a pedir). Límites en `config/game.ts` → `social`: 200 amigos y 30
+solicitudes enviadas sin responder.
+
+Sentado en una **mesa normal con asientos libres**, el jugador puede invitar a sus amigos (botón "Invitar amigos"
+o tocando una silla libre). La invitación le aparece al amigo en cualquier pantalla de la app; "Jugar" lo lleva a
+la mesa y abre la entrada. Caduca a los 5 minutos y deja de mostrarse si la mesa se llena. A las mesas de torneo
+no se invita.
+
+"Conectado" se calcula en memoria: la app consulta `GET /inbox` cada 10 s (y la mesa cada segundo); quien no lo
+hizo en 45 s aparece desconectado.
+
+| Endpoint | Descripción |
+|----------|-------------|
+| `GET /api/v1/inbox` | `{ friendRequests, invitations, progress }`: solicitudes, invitaciones vigentes y logros/nivel sin anunciar |
+| `GET /api/v1/players?q=` | Buscar por nombre de usuario (mín. 2 letras) con la relación (`none`, `friend`, `incoming`, `outgoing`) |
+| `GET /api/v1/friends?roomId=` | Amigos (conectado, mesa en la que están) y solicitudes; con `roomId`, `invitedHere` |
+| `POST /api/v1/friends/requests` | `{ playerId }`: enviar solicitud (`409 already_friends`, `friend_request_exists`, `friend_limit`) |
+| `POST /api/v1/friends/requests/:id/accept` | Aceptar una solicitud recibida |
+| `DELETE /api/v1/friends/requests/:id` | Rechazar (recibida) o cancelar (enviada) |
+| `DELETE /api/v1/friends/:id` | Dejar de ser amigos |
+| `POST /api/v1/rooms/:id/invitations` | `{ playerId }`: invitar a un amigo (`409 not_seated`, `not_friends`, `room_full`, `already_invited`) |
+| `POST /api/v1/invitations/:id/accept` | Devuelve `{ roomId }` (`409 invitation_expired`) |
+| `DELETE /api/v1/invitations/:id` | Rechazar la invitación |
+
+### Experiencia, niveles y logros
+
+Cada mano jugada (también en torneo) da **2 XP**, y **3 más** si la ganas. Cada logro da su XP y sus fichas.
+Para llegar al nivel *n* hace falta `50·n·(n−1)` XP en total (nivel 2 → 100, 5 → 1,000, 10 → 4,500, 20 → 19,000).
+Cada nivel nuevo regala **nivel × 100 fichas** (`level_reward`); cada logro, las suyas (`achievement_reward`).
+Los ritmos están en `config/game.ts` → `progress`, y el catálogo (32 logros en 6 categorías: manos, victorias,
+pozos, jugadas, torneos y social) en `app/game/achievements.ts`.
+
+El nivel sale junto al avatar en la mesa (`seats[].player.level`). Tocar a un jugador abre su tarjeta: nivel,
+números y logros. La app anuncia los logros y niveles nuevos con lo que trae `GET /inbox` → `progress`.
+
+Los jugadores anteriores a los logros arrancan con su historial: la migración carga manos, victorias, mayor pozo
+y victorias all-in de las manos guardadas, y al arrancar el servidor se les repasan los logros (con sus fichas y
+niveles). Rachas y jugadas ganadoras solo cuentan desde ahora.
+
+| Endpoint | Descripción |
+|----------|-------------|
+| `GET /api/v1/me/progress` | Tu nivel, XP (`levelXp`, `nextLevelXp`) y todos los logros con tu avance |
+| `POST /api/v1/me/progress/seen` | La app ya anunció los logros y el nivel nuevos |
+| `GET /api/v1/players/:id` | Tarjeta pública de un jugador: nivel, estadísticas, logros y tu relación con él |
+
 ### Motor de Texas Hold'em
 
 - `app/game/holdem/engine.ts`: motor **puro** (no usa base de datos ni red). Implementa ciegas (y las reglas de heads-up),

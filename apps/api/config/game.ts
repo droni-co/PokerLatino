@@ -124,6 +124,32 @@ const gameConfig = {
   },
 
   /**
+   * Experiencia y niveles (los logros están en app/game/achievements.ts)
+   */
+  progress: {
+    /** XP por cada mano jugada (también en torneos) */
+    xpPerHand: 2,
+    /** XP extra por ganarla */
+    xpPerWin: 3,
+    /** Fichas al llegar a un nivel: nivel × esto (nivel 5 → 500) */
+    levelRewardPerLevel: 100,
+  },
+
+  /**
+   * Amigos e invitaciones a la mesa
+   */
+  social: {
+    /** Amigos por jugador */
+    maxFriends: 200,
+    /** Solicitudes enviadas sin responder (evita el spam de solicitudes) */
+    maxPendingRequests: 30,
+    /** Una invitación a la mesa caduca tras estos minutos */
+    invitationMinutes: 5,
+    /** Conectado = usó la app en estos últimos segundos (la app consulta su buzón cada 10 s) */
+    onlineSeconds: 45,
+  },
+
+  /**
    * Chat de las mesas
    */
   chat: {

@@ -37,6 +37,8 @@ class TableScene extends StatefulWidget {
     required this.state,
     required this.myPlayerId,
     this.onSitAt,
+    this.onInvite,
+    this.onPlayerTap,
     this.animate = true,
     this.chatBubbles = const {},
     this.background = true,
@@ -53,6 +55,12 @@ class TableScene extends StatefulWidget {
 
   /// Si el jugador no está sentado, permite elegir asiento
   final void Function(int seatNumber)? onSitAt;
+
+  /// Sentado en una mesa normal: tocar una silla libre invita a un amigo
+  final VoidCallback? onInvite;
+
+  /// Tocar a otro jugador (p. ej. para agregarlo como amigo)
+  final void Function(TableSeat seat)? onPlayerTap;
 
   /// false en pruebas o con "reducir movimiento"
   final bool animate;
@@ -448,6 +456,7 @@ class _TableSceneState extends State<TableScene> {
                   seatNumber: n,
                   avatarSize: a,
                   onSit: widget.onSitAt == null ? null : () => widget.onSitAt!(n),
+                  onInvite: widget.onInvite,
                 ),
               ),
             );
@@ -528,21 +537,27 @@ class _TableSceneState extends State<TableScene> {
       // La placa nunca se sale de la pantalla en asientos laterales
       left: (sg.avatarCenter.dx - blockWidth / 2).clamp(0.0, math.max(0.0, g.size.width - blockWidth)),
       top: sg.avatarCenter.dy - ring / 2,
-      child: SeatView(
-        seat: seat,
-        isMe: isMe,
-        avatarSize: a,
-        hand: hand,
-        actionTimeoutSeconds: state.room.actionTimeoutSeconds,
-        bubble: bubbleText,
-        chat: widget.chatBubbles[seat.playerId]?.body,
-        wonAmount: winning ? win.$1 : null,
-        isWinner: last != null && last.winners.containsKey(seat.seatNumber),
-        celebrate: widget.animate,
-        handName: result?.handName,
+      child: _tappable(
+        isMe || widget.onPlayerTap == null ? null : () => widget.onPlayerTap!(seat),
+        SeatView(
+          seat: seat,
+          isMe: isMe,
+          avatarSize: a,
+          hand: hand,
+          actionTimeoutSeconds: state.room.actionTimeoutSeconds,
+          bubble: bubbleText,
+          chat: widget.chatBubbles[seat.playerId]?.body,
+          wonAmount: winning ? win.$1 : null,
+          isWinner: last != null && last.winners.containsKey(seat.seatNumber),
+          celebrate: widget.animate,
+          handName: result?.handName,
+        ),
       ),
     );
   }
+
+  static Widget _tappable(VoidCallback? onTap, Widget child) =>
+      onTap == null ? child : GestureDetector(behavior: HitTestBehavior.opaque, onTap: onTap, child: child);
 
   /// Las cartas ganadoras se resaltan cuando ya se ven todas (tras voltearse)
   static Duration _showdownRevealDelay(bool flipping) =>

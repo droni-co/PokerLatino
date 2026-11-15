@@ -15,6 +15,7 @@ import accountService from '#services/game/account_service'
 import roomService from '#services/game/room_service'
 import tableManager, { TableManager } from '#game/table_manager'
 import type { ActionType } from '#game/holdem/engine'
+import { balanceWithoutRewards } from '#tests/helpers/wallet'
 
 let counter = 0
 function createPlayer() {
@@ -186,8 +187,8 @@ test.group('Mesa en vivo', (group) => {
     await tableManager.act(room.id, players[1].id, { type: 'fold' }) // gana la ciega grande
     assert.deepEqual(await seatStacks(room.id), [495, 505])
     assert.isNull(await RoomSeat.query().where('user_id', players[0].id).first())
-    const wallet = await Wallet.query().where('user_id', players[0].id).firstOrFail()
-    assert.equal(wallet.balance, 1000) // 500 en billetera + 500 que no llegó a apostar
+    // 500 en billetera + 500 que no llegó a apostar (sin contar recompensas de logros)
+    assert.equal(await balanceWithoutRewards(players[0].id), 1000)
   })
 
   test('levantarse fuera de turno: se retira cuando le toca, sin esperar su tiempo', async ({

@@ -9,12 +9,15 @@ import 'package:go_router/go_router.dart';
 import '../../core/api/api_client.dart';
 import '../../core/api/api_exception.dart';
 import '../../core/models/models.dart';
+import '../../core/models/social.dart';
 import '../../core/models/table_state.dart';
 import '../../core/models/tournament.dart';
 import '../../core/money.dart';
 import '../../core/providers.dart';
 import '../../core/sounds.dart';
 import '../../core/theme.dart';
+import '../friends/friend_widgets.dart';
+import '../progress/progress_widgets.dart';
 import 'table_chat.dart';
 import 'table_controller.dart';
 import 'table_logic.dart';
@@ -30,8 +33,11 @@ import 'widgets/table_surface.dart';
 const _floatingControlsWidth = 1280.0;
 
 class TablePage extends ConsumerStatefulWidget {
-  const TablePage({super.key, required this.roomId});
+  const TablePage({super.key, required this.roomId, this.autoSit = false});
   final int roomId;
+
+  /// Llegó aceptando una invitación: al cargar la mesa abre la entrada (si hay sitio)
+  final bool autoSit;
 
   @override
   ConsumerState<TablePage> createState() => _TablePageState();
@@ -71,11 +77,32 @@ class _TablePageState extends ConsumerState<TablePage> {
 
   int get roomId => widget.roomId;
 
+  bool _autoSitDone = false;
+
+  /// Al llegar por una invitación: abrir la entrada en cuanto se vea la mesa
+  void _maybeAutoSit(TableState state, int? myId) {
+    if (!widget.autoSit || _autoSitDone || myId == null) return;
+    _autoSitDone = true;
+    final canSit = state.seatOf(myId) == null && state.tournament == null && state.seats.length < state.room.maxSeats;
+    if (!canSit) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _showBuyIn(context, null);
+    });
+  }
+
+  /// Sentado en una mesa normal con sitio: se puede invitar a amigos
+  bool _canInvite(TableState state, TableSeat? mySeat) =>
+      mySeat != null && !mySeat.leaving && state.tournament == null && state.seats.length < state.room.maxSeats;
+
+  void _invite(TableState state) =>
+      InviteFriendsSheet.show(context, roomId: roomId, freeSeats: state.room.maxSeats - state.seats.length);
+
   String _decisionKey(HandInfo hand) => '${hand.id}-${hand.street}';
 
   void _onState(TableState? prev, TableState next) {
     final me = ref.read(authControllerProvider).value;
     if (me != null) _checkSeatRemoved(prev, next, me.id);
+    _maybeAutoSit(next, me?.id);
     final seat = me == null ? null : next.seatOf(me.id);
     // En torneo salir de la pantalla no te levanta: tus ciegas siguen corriendo
     _staying = seat != null && !seat.leaving && next.tournament == null;
@@ -361,6 +388,11 @@ class _TablePageState extends ConsumerState<TablePage> {
       animate: !reduceMotion,
       chatBubbles: _chatBubbles(chat),
       onSitAt: mySeat == null && state.tournament == null ? (seat) => _showBuyIn(context, seat) : null,
+      onInvite: _canInvite(state, mySeat) ? () => _invite(state) : null,
+      onPlayerTap: (seat) => PlayerCardSheet.show(
+        context,
+        PlayerRef(id: seat.playerId, displayName: seat.displayName, avatar: seat.avatar),
+      ),
     );
     // Jugada con la que ganaste la última mano (se resalta en la ayuda)
     final lastMine = state.lastHand?.players.where((p) => p.playerId == myId).firstOrNull;
@@ -381,6 +413,15 @@ class _TablePageState extends ConsumerState<TablePage> {
           compact: compact,
           onPressed: () => _scaffoldKey.currentState?.openEndDrawer(),
         );
+        final invite = _canInvite(state, mySeat)
+            ? _GlassIconButton(
+                key: const ValueKey('invite-friends'),
+                icon: Icons.person_add_alt_1,
+                tooltip: 'Invitar amigos',
+                compact: compact,
+                onPressed: () => _invite(state),
+              )
+            : null;
         final menu = _TableMenu(
           tournament: state.tournament != null,
           seated: mySeat != null,
@@ -406,7 +447,14 @@ class _TablePageState extends ConsumerState<TablePage> {
                       padding: const EdgeInsets.all(6),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
-                        children: [chatButton, const SizedBox(width: 6), help, const SizedBox(width: 6), menu],
+                        children: [
+                          if (invite != null) ...[invite, const SizedBox(width: 6)],
+                          chatButton,
+                          const SizedBox(width: 6),
+                          help,
+                          const SizedBox(width: 6),
+                          menu,
+                        ],
                       ),
                     )
                   : Column(
@@ -415,7 +463,14 @@ class _TablePageState extends ConsumerState<TablePage> {
                         menu,
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 8),
-                          child: Column(children: [chatButton, const SizedBox(height: 8), help]),
+                          child: Column(
+                            children: [
+                              chatButton,
+                              const SizedBox(height: 8),
+                              help,
+                              if (invite != null) ...[const SizedBox(height: 8), invite],
+                            ],
+                          ),
                         ),
                       ],
                     ),
@@ -846,7 +901,13 @@ class _MenuButton extends StatelessWidget {
 }
 
 class _GlassIconButton extends StatelessWidget {
-  const _GlassIconButton({required this.icon, required this.tooltip, required this.onPressed, this.compact = false});
+  const _GlassIconButton({
+    super.key,
+    required this.icon,
+    required this.tooltip,
+    required this.onPressed,
+    this.compact = false,
+  });
   final IconData icon;
   final String tooltip;
   final VoidCallback onPressed;

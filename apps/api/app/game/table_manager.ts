@@ -21,6 +21,7 @@ import {
   type HandResult,
 } from '#game/holdem/engine'
 import { evaluateBest } from '#game/holdem/evaluator'
+import progressService from '#services/game/progress_service'
 
 type Runtime = {
   roomId: number
@@ -365,6 +366,8 @@ export class TableManager {
     const viewer = hand?.playerByUser(viewerId)
     const legal = viewer ? hand!.legalActions(viewer.seat) : null
     const chat = await chatService.list(roomId, options.chatAfter)
+    // Nivel de cada jugador, junto a su avatar (con caché en memoria)
+    const levels = await progressService.levelsOf(seats.map((s) => s.userId))
 
     // Sin al menos 2 jugadores con fichas no empezará ninguna mano: no hay cuenta atrás
     const playable = seats.filter((s) => s.stack > 0 && !s.leaveAfterHand).length
@@ -407,6 +410,7 @@ export class TableManager {
             id: seat.userId,
             displayName: seat.user.displayName,
             avatar: seat.user.avatar,
+            level: levels.get(seat.userId) ?? 1,
           },
           stack: p ? p.stack : seat.stack,
           inHand: !!p,
@@ -698,6 +702,23 @@ export class TableManager {
       logger.info({ roomId: rt.roomId, ...s }, 'Jugador levantado de la mesa')
     }
 
+    // Experiencia y logros (también en torneo). Un fallo aquí no afecta a la mesa.
+    for (const p of result.players) {
+      try {
+        await progressService.recordHand(p.userId, {
+          won: p.isWinner,
+          amountWon: p.amountWon,
+          allIn: p.totalCommitted > 0 && p.totalCommitted === p.startingStack,
+          winningCategory: p.isWinner && p.wentToShowdown && p.hand ? p.hand.category : null,
+        })
+      } catch (error) {
+        logger.error(
+          { err: error, roomId: rt.roomId, userId: p.userId },
+          'No se pudo sumar la experiencia'
+        )
+      }
+    }
+
     rt.lastResult = {
       handId,
       handNumber: rt.handNumber,
@@ -712,6 +733,8 @@ export class TableManager {
       try {
         const { default: tournamentService } = await import('#services/game/tournament_service')
         await tournamentService.maintain(tournamentId)
+        // Eliminaciones y premios: logros de torneo
+        await progressService.evaluateQuietly(...result.players.map((p) => p.userId))
       } catch (error) {
         logger.error({ err: error, roomId: rt.roomId, tournamentId }, 'Error al mantener el torneo')
       }
