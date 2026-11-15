@@ -1,0 +1,62 @@
+# Despliegue de producción (API + app web + PostgreSQL) detrás de
+# nginx-proxy + acme-companion (red externa "nginx-proxy").
+#
+#   cp .env.deploy.example .env.deploy   # y rellenar secretos
+#   docker compose -f docker-compose.prod.yml --env-file .env.deploy up -d --build
+name: pokerlatino-prod
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    environment:
+      TZ: UTC
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 3333
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      APP_KEY: ${APP_KEY:?APP_KEY requerido}
+      APP_URL: https://${DOMAIN:?DOMAIN requerido}
+      SESSION_DRIVER: cookie
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ${DB_USER:-poker}
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD requerido}
+      DB_DATABASE: ${DB_DATABASE:-poker_latino}
+      # nginx-proxy + acme-companion
+      VIRTUAL_HOST: ${DOMAIN}
+      VIRTUAL_PORT: 3333
+      LETSENCRYPT_HOST: ${DOMAIN}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - default
+      - nginx-proxy
+
+  postgres:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-poker}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_DATABASE:-poker_latino}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${DB_USER:-poker} -d ${DB_DATABASE:-poker_latino}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - default
+
+volumes:
+  pgdata:
+
+networks:
+  default:
+  nginx-proxy:
+    external: true

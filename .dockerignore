@@ -1,0 +1,13 @@
+**/node_modules
+**/.env
+**/.env.*
+!**/.env.example
+**/build
+**/tmp
+.git
+.pnpm-store
+apps/api/public
+apps/app/.dart_tool
+apps/app/build
+apps/app/android
+apps/app/ios

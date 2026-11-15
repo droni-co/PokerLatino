@@ -93,6 +93,17 @@ node ace migration:run --force && node ace db:seed   # la primera vez / tras mig
   Si existe una build en `public/`, `pnpm dev` también la sirve en http://localhost:3333.
 - Todo vive en un proceso: la mesa en memoria supone **una sola instancia** (ver motor).
 
+### Con Docker (detrás de nginx-proxy + acme-companion)
+
+```bash
+cp .env.deploy.example .env.deploy   # DOMAIN, APP_KEY, DB_PASSWORD
+docker compose -f docker-compose.prod.yml --env-file .env.deploy up -d --build
+```
+
+La imagen (`apps/api/Dockerfile`) compila la app web con Flutter (`FLUTTER_VERSION`, debe coincidir
+con `apps/app/.metadata`) y la API; al arrancar corre migraciones y seeders (desactivables con
+`RUN_MIGRATIONS=false` / `RUN_SEEDERS=false`). PostgreSQL persiste en el volumen `pgdata`.
+
 ## Scripts (raíz)
 
 | Script | Descripción |
