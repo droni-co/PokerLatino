@@ -54,6 +54,7 @@ export default defineConfig({
     () => import('@adonisjs/auth/auth_provider'),
     () => import('#providers/api_provider'),
     () => import('@adonisjs/core/providers/edge_provider'),
+    () => import('@adonisjs/static/static_provider'),
   ],
 
   /*
@@ -108,6 +109,10 @@ export default defineConfig({
   metaFiles: [
     {
       pattern: 'resources/views/**/*.edge',
+      reloadServer: false,
+    },
+    {
+      pattern: 'public/**',
       reloadServer: false,
     },
   ],

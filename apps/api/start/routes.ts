@@ -9,9 +9,11 @@ import router from '@adonisjs/core/services/router'
 import db from '@adonisjs/lucid/services/db'
 import { controllers } from '#generated/controllers'
 
-router.get('/', () => {
-  return { name: 'Poker Latino API', version: 'v1' }
-})
+// Con la app web compilada en public/, "/" sirve la app (middleware de estáticos) y
+// esta ruta solo responde si no hay build web
+const apiInfo = () => ({ name: 'Poker Latino API', version: 'v1' })
+router.get('/', apiInfo)
+router.get('/api', apiInfo)
 
 router.get('/health', async ({ response }) => {
   try {

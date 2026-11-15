@@ -51,7 +51,7 @@ Requiere la API corriendo (`pnpm dev`) y el cliente OAuth sembrado (`pnpm api:se
 ```bash
 cd apps/app
 flutter pub get
-flutter run -d chrome --web-port 8080     # web
+flutter run -d chrome --web-port 8080 --dart-define=API_URL=http://localhost:3333   # web (= pnpm app:web)
 flutter run -d emulator-5554              # Android (usa http://10.0.2.2:3333 automáticamente)
 flutter run --dart-define=API_URL=http://192.168.1.10:3333   # dispositivo físico en tu red
 ```
@@ -61,11 +61,37 @@ flutter run --dart-define=API_URL=http://192.168.1.10:3333   # dispositivo físi
   `co.droni.pokerlatino:/oauth/callback`. Los tokens se guardan cifrados (Keychain/Keystore) y la
   renovación es de un solo vuelo (el servidor rota los refresh tokens).
 - **Mesa**: el estado se consulta cada segundo (polling). Tu asiento siempre aparece abajo.
-- **Producción web**: agrega `https://<tu-dominio>/auth.html` a los redirect URIs del seeder y el
-  origen a `config/cors.ts` (hoy solo se permite cualquier origen en desarrollo).
+- **Producción web**: la sirve el propio servidor de Adonis (ver "Despliegue"); la app usa su mismo
+  origen como URL de la API, así que no hace falta CORS ni configurar `API_URL`.
 - **Pruebas**: `flutter test` (PKCE con el vector del RFC 7636, cliente OAuth con servidor simulado,
   modelos contra JSON real de la API en `test/fixtures/`, lógica y widgets de la mesa en tamaños
   de móvil, horizontal y escritorio).
+
+## Despliegue (un solo servidor)
+
+La versión web de Flutter se compila dentro de `apps/api/public/` y la sirve Adonis en la raíz,
+junto a la API, en el mismo dominio y puerto:
+
+| Ruta | Qué responde |
+|------|--------------|
+| `/`, `/lobby`, `/rooms/5`… | La app web (`index.html`; las rutas de la app se resuelven en el navegador) |
+| `/main.dart.js`, `/assets/…`, `/auth.html`… | Archivos de la app (`@adonisjs/static`, revalidados con ETag) |
+| `/api/v1/…`, `/oauth/…`, `/.well-known/…`, `/health` | El servidor (API, login OAuth, salud) |
+
+```bash
+pnpm build            # flutter build web → apps/api/public, y luego node ace build → apps/api/build
+cd apps/api/build
+pnpm i --prod
+node bin/server.js    # con .env de producción (APP_URL=https://<tu-dominio>, NODE_ENV=production…)
+node ace migration:run --force && node ace db:seed   # la primera vez / tras migraciones nuevas
+```
+
+- `APP_URL` debe ser la URL pública: el seeder registra `<APP_URL>/auth.html` como redirect OAuth
+  de la app web (vuelve a correr `db:seed` si cambia el dominio).
+- `apps/api/public/` no se versiona; se regenera en cada `pnpm build` / `pnpm build:web`.
+- En desarrollo puedes seguir usando `pnpm app:web` (puerto 8080, con hot reload) contra `pnpm dev`.
+  Si existe una build en `public/`, `pnpm dev` también la sirve en http://localhost:3333.
+- Todo vive en un proceso: la mesa en memoria supone **una sola instancia** (ver motor).
 
 ## Scripts (raíz)
 
@@ -77,7 +103,9 @@ flutter run --dart-define=API_URL=http://192.168.1.10:3333   # dispositivo físi
 | `pnpm api:seed` | Registra el cliente OAuth `poker-latino-app` y las salas iniciales |
 | `pnpm api:test` | Tests de la API (usa la DB `poker_latino_test`) |
 | `pnpm app:get` / `app:dev` | `flutter pub get` / `flutter run` |
-| `pnpm app:web` | App web en http://localhost:8080 |
+| `pnpm app:web` | App web en http://localhost:8080 (desarrollo, contra la API en :3333) |
+| `pnpm build:web` | Compila la app web en `apps/api/public/` |
+| `pnpm build` | Build de producción completa: app web + API en `apps/api/build/` |
 | `pnpm app:test` | Tests de la app Flutter |
 
 ## Juego y economía
@@ -142,7 +170,8 @@ mismo sondeo de la mesa. En `lastHand.players`, `bestCards` trae las 5 cartas de
 llegaron al showdown (la app las resalta). Los mensajes se borran a los 3 días (`config/game.ts → chat`).
 
 Entre manos hay una pausa de 15 s (`config/game.ts → table.nextHandDelayMs`) para ver el resultado; `/state`
-trae `nextHandAt` con la hora de inicio de la siguiente. Durante esa pausa `lastHand.yourCards` trae tus cartas
+trae `nextHandAt` con la hora de inicio de la siguiente y `nextHandInMs` con los milisegundos que faltan (la app usa
+este último para la cuenta atrás sobre el tablero, así no depende del reloj del dispositivo). Durante esa pausa `lastHand.yourCards` trae tus cartas
 (solo a ti) y `lastHand.canShow` indica si puedes enseñarlas; quienes las enseñan aparecen en `lastHand.players`
 con `shown: true`, sus `holeCards` y su jugada (`handName`) si ya había flop. Cuando alguien se sienta en una mesa
 parada la mano arranca en 3 s (`firstHandDelayMs`), sin acortar ni alargar una pausa en curso.

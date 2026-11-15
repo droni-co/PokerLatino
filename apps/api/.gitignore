@@ -10,8 +10,8 @@ tmp/*
 .env.production.local
 .env.development.local
 
-# Frontend assets compiled code
-public/assets
+# App web compilada (pnpm build:web la genera desde apps/app)
+public/*
 
 # Build tools specific
 npm-debug.log

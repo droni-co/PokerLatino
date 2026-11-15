@@ -26,6 +26,9 @@ server.use([
   () => import('#middleware/force_json_response_middleware'),
   () => import('#middleware/container_bindings_middleware'),
   () => import('@adonisjs/cors/cors_middleware'),
+  // App web (Flutter compilada en public/): archivos y, para sus rutas, index.html
+  () => import('@adonisjs/static/static_middleware'),
+  () => import('#middleware/spa_fallback_middleware'),
 ])
 
 /**

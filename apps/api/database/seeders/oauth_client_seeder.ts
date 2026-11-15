@@ -1,6 +1,10 @@
 import { BaseSeeder } from '@adonisjs/lucid/seeders'
 import OauthClient from '#models/oauth_client'
 import oauthServer from '#services/oauth/oauth_server'
+import env from '#start/env'
+
+/** La app web servida por este mismo servidor vuelve del login a <APP_URL>/auth.html */
+const appUrl = new URL('/auth.html', env.get('APP_URL')).toString()
 
 /**
  * Cliente OAuth de la app Flutter (público, propio → sin pantalla de consentimiento).
@@ -17,7 +21,10 @@ export const FLUTTER_CLIENT = {
     // Desktop / loopback
     'http://localhost/oauth/callback',
     'http://127.0.0.1/oauth/callback',
-    // Producción web: agregar aquí la URL pública, ej. 'https://pokerlatino.com/auth.html'
+    // App web servida por este servidor (producción: APP_URL=https://pokerlatino.com)
+    ...(appUrl.startsWith('http://localhost') || appUrl.startsWith('http://127.0.0.1')
+      ? []
+      : [appUrl]),
   ],
 }
 
