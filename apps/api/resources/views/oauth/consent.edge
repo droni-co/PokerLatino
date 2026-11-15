@@ -1,0 +1,23 @@
+@component('components/layout', { title: 'Autorizar aplicación' })
+  <h1>{{ client.name }} quiere acceder a tu cuenta</h1>
+  <p class="muted">Sesión iniciada como <strong>{{ user.email }}</strong></p>
+
+  <p>Esta aplicación podrá:</p>
+  <ul class="scopes">
+    @each(scope in scopes)
+      <li>{{ scope.description }}</li>
+    @end
+  </ul>
+
+  <form method="POST" action="/oauth/authorize">
+    {{ csrfField() }}
+    <input type="hidden" name="nonce" value="{{ nonce }}">
+    <button type="submit" name="decision" value="approve">Permitir</button>
+    <button type="submit" name="decision" value="deny" class="secondary">Cancelar</button>
+  </form>
+
+  <form method="POST" action="/oauth/logout" class="footer">
+    {{ csrfField() }}
+    <button type="submit" class="link">¿No eres tú? Cerrar sesión</button>
+  </form>
+@end

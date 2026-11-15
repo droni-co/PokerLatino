@@ -13,6 +13,7 @@
     "api:build": "pnpm --filter @poker-latino/api build",
     "api:test": "pnpm --filter @poker-latino/api test",
     "api:migrate": "pnpm --filter @poker-latino/api exec node ace migration:run",
+    "api:seed": "pnpm --filter @poker-latino/api exec node ace db:seed",
     "app:get": "cd apps/app && flutter pub get",
     "app:dev": "cd apps/app && flutter run",
     "lint": "pnpm -r lint",

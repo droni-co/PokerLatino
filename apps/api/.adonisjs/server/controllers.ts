@@ -4,7 +4,19 @@
  */
 
 export const controllers = {
-  AccessTokens: () => import('#controllers/access_tokens_controller'),
-  NewAccount: () => import('#controllers/new_account_controller'),
+  game: {
+    Config: () => import('#controllers/game/config_controller'),
+    Deposits: () => import('#controllers/game/deposits_controller'),
+    Rooms: () => import('#controllers/game/rooms_controller'),
+    Stats: () => import('#controllers/game/stats_controller'),
+    Tables: () => import('#controllers/game/tables_controller'),
+    Wallets: () => import('#controllers/game/wallets_controller'),
+  },
+  oauth: {
+    Authorize: () => import('#controllers/oauth/authorize_controller'),
+    Register: () => import('#controllers/oauth/register_controller'),
+    Session: () => import('#controllers/oauth/session_controller'),
+    Token: () => import('#controllers/oauth/token_controller'),
+  },
   Profile: () => import('#controllers/profile_controller'),
 }

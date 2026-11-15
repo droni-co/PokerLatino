@@ -1,0 +1,8 @@
+@component('components/layout', { title: 'Sesión iniciada' })
+  <h1>Sesión iniciada</h1>
+  <p class="muted">Ya puedes volver a la aplicación.</p>
+  <form method="POST" action="/oauth/logout">
+    {{ csrfField() }}
+    <button type="submit" class="secondary">Cerrar sesión</button>
+  </form>
+@end

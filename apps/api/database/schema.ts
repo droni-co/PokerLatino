@@ -7,44 +7,465 @@
 import { BaseModel, column } from '@adonisjs/lucid/orm'
 import { DateTime } from 'luxon'
 
-export class AuthAccessTokenSchema extends BaseModel {
-  static $columns = ['abilities', 'createdAt', 'expiresAt', 'hash', 'id', 'lastUsedAt', 'name', 'tokenableId', 'type', 'updatedAt'] as const
-  $columns = AuthAccessTokenSchema.$columns
+export class DepositSchema extends BaseModel {
+  static $columns = [
+    'amount',
+    'completedAt',
+    'createdAt',
+    'id',
+    'provider',
+    'providerReference',
+    'status',
+    'updatedAt',
+    'userId',
+  ] as const
+  $columns = DepositSchema.$columns
   @column()
-  declare abilities: string
-  @column.dateTime({ autoCreate: true })
-  declare createdAt: DateTime | null
+  declare amount: number
   @column.dateTime()
-  declare expiresAt: DateTime | null
+  declare completedAt: DateTime | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column({ isPrimary: true })
+  declare id: string
   @column()
-  declare hash: string
+  declare provider: string
+  @column()
+  declare providerReference: string | null
+  @column()
+  declare status: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
+  @column()
+  declare userId: number
+}
+
+export class HandActionSchema extends BaseModel {
+  static $columns = [
+    'action',
+    'amount',
+    'createdAt',
+    'handId',
+    'id',
+    'sequence',
+    'street',
+    'userId',
+  ] as const
+  $columns = HandActionSchema.$columns
+  @column()
+  declare action: string
+  @column()
+  declare amount: number
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare handId: number
+  @column({ isPrimary: true })
+  declare id: bigint | number
+  @column()
+  declare sequence: number
+  @column()
+  declare street: string
+  @column()
+  declare userId: number | null
+}
+
+export class HandPlayerSchema extends BaseModel {
+  static $columns = [
+    'amountWagered',
+    'amountWon',
+    'endingStack',
+    'folded',
+    'handId',
+    'id',
+    'seatNumber',
+    'startingStack',
+    'userId',
+    'wentToShowdown',
+  ] as const
+  $columns = HandPlayerSchema.$columns
+  @column()
+  declare amountWagered: number
+  @column()
+  declare amountWon: number
+  @column()
+  declare endingStack: number | null
+  @column()
+  declare folded: boolean
+  @column()
+  declare handId: number
+  @column({ isPrimary: true })
+  declare id: bigint | number
+  @column()
+  declare seatNumber: number
+  @column()
+  declare startingStack: number
+  @column()
+  declare userId: number
+  @column()
+  declare wentToShowdown: boolean
+}
+
+export class HandSchema extends BaseModel {
+  static $columns = [
+    'bigBlind',
+    'currency',
+    'dealerSeat',
+    'endedAt',
+    'handNumber',
+    'id',
+    'pot',
+    'roomId',
+    'smallBlind',
+    'startedAt',
+    'status',
+  ] as const
+  $columns = HandSchema.$columns
+  @column()
+  declare bigBlind: number
+  @column()
+  declare currency: string
+  @column()
+  declare dealerSeat: number
+  @column.dateTime()
+  declare endedAt: DateTime | null
+  @column()
+  declare handNumber: number
+  @column({ isPrimary: true })
+  declare id: bigint | number
+  @column()
+  declare pot: number
+  @column()
+  declare roomId: number
+  @column()
+  declare smallBlind: number
+  @column.dateTime()
+  declare startedAt: DateTime
+  @column()
+  declare status: string
+}
+
+export class OauthAccessTokenSchema extends BaseModel {
+  static $columns = [
+    'clientId',
+    'createdAt',
+    'expiresAt',
+    'familyId',
+    'id',
+    'revokedAt',
+    'tokenHash',
+    'userId',
+  ] as const
+  $columns = OauthAccessTokenSchema.$columns
+  @column()
+  declare clientId: string
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column.dateTime()
+  declare expiresAt: DateTime
+  @column()
+  declare familyId: string
+  @column({ isPrimary: true })
+  declare id: string
+  @column.dateTime()
+  declare revokedAt: DateTime | null
+  @column()
+  declare tokenHash: string
+  @column()
+  declare userId: number
+}
+
+export class OauthAuthorizationCodeSchema extends BaseModel {
+  static $columns = [
+    'clientId',
+    'codeChallenge',
+    'codeChallengeMethod',
+    'codeHash',
+    'createdAt',
+    'expiresAt',
+    'familyId',
+    'id',
+    'redirectUri',
+    'usedAt',
+    'userId',
+  ] as const
+  $columns = OauthAuthorizationCodeSchema.$columns
+  @column()
+  declare clientId: string
+  @column()
+  declare codeChallenge: string
+  @column()
+  declare codeChallengeMethod: string
+  @column()
+  declare codeHash: string
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column.dateTime()
+  declare expiresAt: DateTime
+  @column()
+  declare familyId: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare redirectUri: string
+  @column.dateTime()
+  declare usedAt: DateTime | null
+  @column()
+  declare userId: number
+}
+
+export class OauthClientSchema extends BaseModel {
+  static $columns = [
+    'createdAt',
+    'id',
+    'isFirstParty',
+    'name',
+    'revokedAt',
+    'secretHash',
+    'updatedAt',
+  ] as const
+  $columns = OauthClientSchema.$columns
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare isFirstParty: boolean
+  @column()
+  declare name: string
+  @column.dateTime()
+  declare revokedAt: DateTime | null
+  @column()
+  declare secretHash: string | null
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
+}
+
+export class OauthRefreshTokenSchema extends BaseModel {
+  static $columns = [
+    'accessTokenId',
+    'clientId',
+    'createdAt',
+    'expiresAt',
+    'familyId',
+    'id',
+    'replacedById',
+    'revokedAt',
+    'tokenHash',
+    'userId',
+  ] as const
+  $columns = OauthRefreshTokenSchema.$columns
+  @column()
+  declare accessTokenId: string
+  @column()
+  declare clientId: string
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column.dateTime()
+  declare expiresAt: DateTime
+  @column()
+  declare familyId: string
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare replacedById: string | null
+  @column.dateTime()
+  declare revokedAt: DateTime | null
+  @column()
+  declare tokenHash: string
+  @column()
+  declare userId: number
+}
+
+export class PlayerStatSchema extends BaseModel {
+  static $columns = [
+    'biggestPotWon',
+    'createdAt',
+    'currency',
+    'handsPlayed',
+    'handsWon',
+    'id',
+    'showdownsReached',
+    'totalDeposited',
+    'totalWagered',
+    'totalWithdrawn',
+    'totalWon',
+    'updatedAt',
+    'userId',
+  ] as const
+  $columns = PlayerStatSchema.$columns
+  @column()
+  declare biggestPotWon: number
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare currency: string
+  @column()
+  declare handsPlayed: number
+  @column()
+  declare handsWon: number
   @column({ isPrimary: true })
   declare id: number
-  @column.dateTime()
-  declare lastUsedAt: DateTime | null
   @column()
-  declare name: string | null
+  declare showdownsReached: number
   @column()
-  declare tokenableId: number
+  declare totalDeposited: number
   @column()
-  declare type: string
+  declare totalWagered: number
+  @column()
+  declare totalWithdrawn: number
+  @column()
+  declare totalWon: number
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
+  @column()
+  declare userId: number
+}
+
+export class RoomSeatSchema extends BaseModel {
+  static $columns = [
+    'createdAt',
+    'id',
+    'roomId',
+    'seatNumber',
+    'stack',
+    'status',
+    'updatedAt',
+    'userId',
+  ] as const
+  $columns = RoomSeatSchema.$columns
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare roomId: number
+  @column()
+  declare seatNumber: number
+  @column()
+  declare stack: number
+  @column()
+  declare status: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
+  @column()
+  declare userId: number
+}
+
+export class RoomSchema extends BaseModel {
+  static $columns = [
+    'actionTimeoutSeconds',
+    'bettingStructure',
+    'bigBlind',
+    'createdAt',
+    'currency',
+    'gameType',
+    'id',
+    'maxBuyIn',
+    'maxSeats',
+    'minBuyIn',
+    'name',
+    'slug',
+    'smallBlind',
+    'status',
+    'updatedAt',
+  ] as const
+  $columns = RoomSchema.$columns
+  @column()
+  declare actionTimeoutSeconds: number
+  @column()
+  declare bettingStructure: string
+  @column()
+  declare bigBlind: number
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare currency: string
+  @column()
+  declare gameType: string
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare maxBuyIn: number
+  @column()
+  declare maxSeats: number
+  @column()
+  declare minBuyIn: number
+  @column()
+  declare name: string
+  @column()
+  declare slug: string
+  @column()
+  declare smallBlind: number
+  @column()
+  declare status: string
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime | null
 }
 
 export class UserSchema extends BaseModel {
-  static $columns = ['createdAt', 'email', 'fullName', 'id', 'password', 'updatedAt'] as const
+  static $columns = ['birthDate', 'createdAt', 'email', 'id', 'password', 'updatedAt'] as const
   $columns = UserSchema.$columns
+  @column.date()
+  declare birthDate: DateTime
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
   @column()
   declare email: string
-  @column()
-  declare fullName: string | null
   @column({ isPrimary: true })
   declare id: number
   @column({ serializeAs: null })
   declare password: string
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime | null
+}
+
+export class WalletTransactionSchema extends BaseModel {
+  static $columns = [
+    'amount',
+    'balanceAfter',
+    'createdAt',
+    'description',
+    'id',
+    'referenceId',
+    'referenceType',
+    'type',
+    'walletId',
+  ] as const
+  $columns = WalletTransactionSchema.$columns
+  @column()
+  declare amount: number
+  @column()
+  declare balanceAfter: number
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare description: string | null
+  @column({ isPrimary: true })
+  declare id: bigint | number
+  @column()
+  declare referenceId: string | null
+  @column()
+  declare referenceType: string | null
+  @column()
+  declare type: string
+  @column()
+  declare walletId: number
+}
+
+export class WalletSchema extends BaseModel {
+  static $columns = ['balance', 'createdAt', 'currency', 'id', 'updatedAt', 'userId'] as const
+  $columns = WalletSchema.$columns
+  @column()
+  declare balance: number
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare currency: string
+  @column({ isPrimary: true })
+  declare id: number
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
+  @column()
+  declare userId: number
 }

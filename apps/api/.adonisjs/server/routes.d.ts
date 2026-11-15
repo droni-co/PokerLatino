@@ -4,21 +4,72 @@ type ParamValue = string | number | bigint | boolean
 
 export type ScannedRoutes = {
   ALL: {
-    'auth.new_account.store': { paramsTuple?: []; params?: {} }
-    'auth.access_tokens.store': { paramsTuple?: []; params?: {} }
-    'profile.profile.show': { paramsTuple?: []; params?: {} }
-    'profile.access_tokens.destroy': { paramsTuple?: []; params?: {} }
+    'token.metadata': { paramsTuple?: []; params?: {} }
+    'oauth.authorize': { paramsTuple?: []; params?: {} }
+    'oauth.authorize.decide': { paramsTuple?: []; params?: {} }
+    'oauth.login': { paramsTuple?: []; params?: {} }
+    'oauth.login.store': { paramsTuple?: []; params?: {} }
+    'oauth.logout': { paramsTuple?: []; params?: {} }
+    'oauth.register': { paramsTuple?: []; params?: {} }
+    'oauth.register.store': { paramsTuple?: []; params?: {} }
+    'oauth.token': { paramsTuple?: []; params?: {} }
+    'oauth.revoke': { paramsTuple?: []; params?: {} }
+    'oauth.introspect': { paramsTuple?: []; params?: {} }
+    'me': { paramsTuple?: []; params?: {} }
+    'game.config': { paramsTuple?: []; params?: {} }
+    'wallets.index': { paramsTuple?: []; params?: {} }
+    'wallets.transactions': { paramsTuple: [ParamValue]; params: {'currency': ParamValue} }
+    'deposits.store': { paramsTuple?: []; params?: {} }
+    'rooms.index': { paramsTuple?: []; params?: {} }
+    'rooms.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'rooms.sit': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'rooms.leave': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'rooms.state': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'rooms.act': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'me.stats': { paramsTuple?: []; params?: {} }
   }
   GET: {
-    'profile.profile.show': { paramsTuple?: []; params?: {} }
+    'token.metadata': { paramsTuple?: []; params?: {} }
+    'oauth.authorize': { paramsTuple?: []; params?: {} }
+    'oauth.login': { paramsTuple?: []; params?: {} }
+    'oauth.register': { paramsTuple?: []; params?: {} }
+    'me': { paramsTuple?: []; params?: {} }
+    'game.config': { paramsTuple?: []; params?: {} }
+    'wallets.index': { paramsTuple?: []; params?: {} }
+    'wallets.transactions': { paramsTuple: [ParamValue]; params: {'currency': ParamValue} }
+    'rooms.index': { paramsTuple?: []; params?: {} }
+    'rooms.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'rooms.state': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'me.stats': { paramsTuple?: []; params?: {} }
   }
   HEAD: {
-    'profile.profile.show': { paramsTuple?: []; params?: {} }
+    'token.metadata': { paramsTuple?: []; params?: {} }
+    'oauth.authorize': { paramsTuple?: []; params?: {} }
+    'oauth.login': { paramsTuple?: []; params?: {} }
+    'oauth.register': { paramsTuple?: []; params?: {} }
+    'me': { paramsTuple?: []; params?: {} }
+    'game.config': { paramsTuple?: []; params?: {} }
+    'wallets.index': { paramsTuple?: []; params?: {} }
+    'wallets.transactions': { paramsTuple: [ParamValue]; params: {'currency': ParamValue} }
+    'rooms.index': { paramsTuple?: []; params?: {} }
+    'rooms.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'rooms.state': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'me.stats': { paramsTuple?: []; params?: {} }
   }
   POST: {
-    'auth.new_account.store': { paramsTuple?: []; params?: {} }
-    'auth.access_tokens.store': { paramsTuple?: []; params?: {} }
-    'profile.access_tokens.destroy': { paramsTuple?: []; params?: {} }
+    'oauth.authorize.decide': { paramsTuple?: []; params?: {} }
+    'oauth.login.store': { paramsTuple?: []; params?: {} }
+    'oauth.logout': { paramsTuple?: []; params?: {} }
+    'oauth.register.store': { paramsTuple?: []; params?: {} }
+    'oauth.token': { paramsTuple?: []; params?: {} }
+    'oauth.revoke': { paramsTuple?: []; params?: {} }
+    'oauth.introspect': { paramsTuple?: []; params?: {} }
+    'deposits.store': { paramsTuple?: []; params?: {} }
+    'rooms.sit': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'rooms.act': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+  }
+  DELETE: {
+    'rooms.leave': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
   }
 }
 declare module '@adonisjs/core/types/http' {

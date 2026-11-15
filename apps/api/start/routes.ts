@@ -2,15 +2,12 @@
 |--------------------------------------------------------------------------
 | Routes file
 |--------------------------------------------------------------------------
-|
-| The routes file is used for defining the HTTP routes.
-|
 */
 
 import { middleware } from '#start/kernel'
 import router from '@adonisjs/core/services/router'
-import { controllers } from '#generated/controllers'
 import db from '@adonisjs/lucid/services/db'
+import { controllers } from '#generated/controllers'
 
 router.get('/', () => {
   return { name: 'Poker Latino API', version: 'v1' }
@@ -25,23 +22,69 @@ router.get('/health', async ({ response }) => {
   }
 })
 
+/*
+|--------------------------------------------------------------------------
+| Servidor OAuth2
+|--------------------------------------------------------------------------
+| Páginas HTML (sesión del navegador): authorize, login, register, logout
+| Endpoints máquina a máquina: token, revoke, introspect
+*/
+router.get('/.well-known/oauth-authorization-server', [controllers.oauth.Token, 'metadata'])
+
+router
+  .group(() => {
+    router.get('authorize', [controllers.oauth.Authorize, 'show']).as('authorize')
+    router.post('authorize', [controllers.oauth.Authorize, 'decide']).as('authorize.decide')
+
+    router.get('login', [controllers.oauth.Session, 'create']).as('login')
+    router.post('login', [controllers.oauth.Session, 'store']).as('login.store')
+    router.post('logout', [controllers.oauth.Session, 'destroy']).as('logout')
+
+    router.get('register', [controllers.oauth.Register, 'create']).as('register')
+    router.post('register', [controllers.oauth.Register, 'store']).as('register.store')
+
+    router.post('token', [controllers.oauth.Token, 'token']).as('token')
+    router.post('revoke', [controllers.oauth.Token, 'revoke']).as('revoke')
+    router.post('introspect', [controllers.oauth.Token, 'introspect']).as('introspect')
+  })
+  .prefix('/oauth')
+  .as('oauth')
+
+/*
+|--------------------------------------------------------------------------
+| API (requiere access token OAuth2)
+|--------------------------------------------------------------------------
+*/
 router
   .group(() => {
     router
-      .group(() => {
-        router.post('signup', [controllers.NewAccount, 'store'])
-        router.post('login', [controllers.AccessTokens, 'store'])
-      })
-      .prefix('auth')
-      .as('auth')
+      .get('me', [controllers.Profile, 'show'])
+      .as('me')
+      .use(middleware.scope({ scopes: ['profile'] }))
 
+    // Juego: requiere el scope "game"
     router
       .group(() => {
-        router.get('profile', [controllers.Profile, 'show'])
-        router.post('logout', [controllers.AccessTokens, 'destroy'])
+        router.get('game/config', [controllers.game.Config, 'show']).as('game.config')
+
+        router.get('wallets', [controllers.game.Wallets, 'index']).as('wallets.index')
+        router
+          .get('wallets/:currency/transactions', [controllers.game.Wallets, 'transactions'])
+          .as('wallets.transactions')
+          .where('currency', /^(credits|usd)$/)
+        router.post('deposits', [controllers.game.Deposits, 'store']).as('deposits.store')
+
+        router.get('rooms', [controllers.game.Rooms, 'index']).as('rooms.index')
+        router.get('rooms/:id', [controllers.game.Rooms, 'show']).as('rooms.show')
+        router.post('rooms/:id/seat', [controllers.game.Rooms, 'sit']).as('rooms.sit')
+        router.delete('rooms/:id/seat', [controllers.game.Rooms, 'leave']).as('rooms.leave')
+        router.get('rooms/:id/state', [controllers.game.Tables, 'show']).as('rooms.state')
+        router.post('rooms/:id/actions', [controllers.game.Tables, 'act']).as('rooms.act')
+
+        router.get('me/stats', [controllers.game.Stats, 'show']).as('me.stats')
       })
-      .prefix('account')
-      .as('profile')
-      .use(middleware.auth())
+      .where('id', router.matchers.number())
+      .use(middleware.scope({ scopes: ['game'] }))
   })
   .prefix('/api/v1')
+  .use(middleware.auth())

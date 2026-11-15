@@ -45,8 +45,11 @@ export const http = defineConfig({
      * When enabled, all redirects automatically carry over the current
      * request's query string parameters to the redirect destination.
      * Use withQs(false) to opt out for a specific redirect.
+     *
+     * Desactivado: en el flujo OAuth reenviar el query string de /oauth/authorize
+     * contaminaría el redirect_uri del cliente (y filtraría parámetros).
      */
-    forwardQueryString: true,
+    forwardQueryString: false,
   },
 
   /**

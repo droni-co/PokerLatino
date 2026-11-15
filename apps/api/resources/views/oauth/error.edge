@@ -1,0 +1,5 @@
+@component('components/layout', { title: 'Error' })
+  <h1>No se pudo continuar</h1>
+  <div class="alert" role="alert">{{ description }}</div>
+  <p class="muted">Código: {{ error }}. Vuelve a la aplicación e inténtalo de nuevo.</p>
+@end

@@ -1,6 +1,14 @@
 import app from '@adonisjs/core/services/app'
 import env from '#start/env'
 import { defineConfig } from '@adonisjs/lucid'
+import pg from 'pg'
+
+/**
+ * int8 (bigint) llega como string desde pg. Los montos se guardan en unidades
+ * mínimas (centavos / créditos) y nunca se acercan a 2^53, así que es seguro
+ * convertirlos a number.
+ */
+pg.types.setTypeParser(pg.types.builtins.INT8, (value) => Number.parseInt(value, 10))
 
 const dbConfig = defineConfig({
   connection: 'pg',

@@ -1,4 +1,5 @@
 import app from '@adonisjs/core/services/app'
+import { errors as authErrors } from '@adonisjs/auth'
 import { type HttpContext, ExceptionHandler } from '@adonisjs/core/http'
 
 export default class HttpExceptionHandler extends ExceptionHandler {
@@ -8,20 +9,20 @@ export default class HttpExceptionHandler extends ExceptionHandler {
    */
   protected debug = !app.inProduction
 
-  /**
-   * The method is used for handling errors and returning
-   * response to the client
-   */
   async handle(error: unknown, ctx: HttpContext) {
+    /**
+     * Errores del guard OAuth2 en la API: respuesta JSON estilo RFC 6750
+     */
+    if (error instanceof authErrors.E_UNAUTHORIZED_ACCESS && error.guardDriverName === 'oauth2') {
+      return ctx.response.unauthorized({
+        error: 'invalid_token',
+        error_description: 'Access token ausente, inválido o expirado',
+      })
+    }
+
     return super.handle(error, ctx)
   }
 
-  /**
-   * The method is used to report error to the logging service or
-   * the a third party error monitoring service.
-   *
-   * @note You should not attempt to send a response from this method.
-   */
   async report(error: unknown, ctx: HttpContext) {
     return super.report(error, ctx)
   }
