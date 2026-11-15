@@ -120,4 +120,21 @@ void main() {
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox()); // la escena usa el reloj real para los globos
   });
+
+  testWidgets('al terminar la mano la mesa muestra la cuenta atrás de la siguiente', (tester) async {
+    final json = betweenHands()..['nextHandInMs'] = 9400;
+    await pump(
+      tester,
+      TableScene(state: TableState.fromJson(json), myPlayerId: 1, animate: false),
+      const Size(390, 640),
+    );
+    expect(find.byKey(const ValueKey('next-hand-timer')), findsOneWidget);
+    expect(find.text('SIGUIENTE MANO'), findsOneWidget);
+    expect(find.text('10'), findsOneWidget);
+
+    // Con la mano en curso no hay cuenta atrás
+    await pump(tester, TableScene(state: stateFrom('table_state_in_hand'), myPlayerId: 1), const Size(390, 640));
+    expect(find.byKey(const ValueKey('next-hand-timer')), findsNothing);
+    await tester.pumpWidget(const SizedBox());
+  });
 }

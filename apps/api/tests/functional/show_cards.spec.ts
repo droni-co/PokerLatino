@@ -116,6 +116,7 @@ test.group('Mesa · enseñar cartas', (group) => {
       assert.isNull(state.hand)
       const seconds = DateTime.fromISO(state.nextHandAt!).diffNow().as('seconds')
       assert.isAbove(seconds, 55)
+      assert.closeTo(state.nextHandInMs!, 60_000, 5000)
     } finally {
       manager.reset()
     }

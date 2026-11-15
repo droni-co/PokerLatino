@@ -13,6 +13,7 @@ import '../table_logic.dart';
 import 'chips.dart';
 import 'winner_effects.dart';
 import 'flight_layer.dart';
+import 'next_hand_timer.dart';
 import 'playing_card.dart';
 import 'seat_view.dart';
 import 'table_surface.dart';
@@ -335,6 +336,22 @@ class _TableSceneState extends State<TableScene> {
         // Bote
         if (hand != null && hand.pot > 0) {
           children.add(_centered(g.potPoint, _PotLabel(amount: hand.pot, state: state, scale: g.scale)));
+        }
+
+        // Entre manos: cuenta atrás hasta la siguiente, encima del tablero (la ven también los espectadores)
+        final nextHandAt = state.nextHandAt;
+        if (hand == null && nextHandAt != null) {
+          final boardTop = g.boardCenter.dy - g.boardCardWidth * 0.7;
+          children.add(
+            Positioned(
+              left: g.center.dx,
+              top: boardTop - g.boardCardWidth * 0.3,
+              child: FractionalTranslation(
+                translation: const Offset(-0.5, -1),
+                child: NextHandTimer(deadline: nextHandAt, scale: g.scale, sound: widget.animate),
+              ),
+            ),
+          );
         }
 
         // Tablero. Tras el showdown, las cartas de la mano ganadora se iluminan y se elevan

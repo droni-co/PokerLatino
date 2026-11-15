@@ -336,6 +336,8 @@ export class TableManager {
     const viewer = hand?.playerByUser(viewerId)
     const legal = viewer ? hand!.legalActions(viewer.seat) : null
     const chat = await chatService.list(roomId, options.chatAfter)
+    const nextHandAt =
+      !hand && rt?.nextHandAt && rt.nextHandAt.diffNow().toMillis() > 0 ? rt.nextHandAt : null
 
     return {
       room: {
@@ -386,7 +388,9 @@ export class TableManager {
         ? { seatNumber: viewer.seat, holeCards: viewer.holeCards, legalActions: legal }
         : null,
       lastHand: rt?.lastResult ? this.lastHandView(rt, viewerId) : null,
-      nextHandAt: !hand ? (rt?.nextHandAt?.toISO() ?? null) : null,
+      nextHandAt: nextHandAt?.toISO() ?? null,
+      // Lo mismo en milisegundos: el cliente no depende de que su reloj esté en hora
+      nextHandInMs: nextHandAt ? Math.max(0, Math.round(nextHandAt.diffNow().toMillis())) : null,
       chat: chat.map(publicMessage),
     }
   }

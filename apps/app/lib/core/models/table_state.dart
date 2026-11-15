@@ -48,8 +48,17 @@ class TableState {
     you: json['you'] == null ? null : YouInfo.fromJson(json['you'] as Json),
     lastHand: json['lastHand'] == null ? null : LastHand.fromJson(json['lastHand'] as Json),
     chat: [for (final m in json['chat'] as List? ?? const []) ChatMessage.fromJson(m as Json)],
-    nextHandAt: json['nextHandAt'] == null ? null : DateTime.parse(json['nextHandAt'] as String).toLocal(),
+    nextHandAt: _nextHandAt(json),
   );
+}
+
+/// Hora local de inicio de la siguiente mano. Se prefiere `nextHandInMs` (relativo a la respuesta)
+/// para no depender de que el reloj del dispositivo coincida con el del servidor.
+DateTime? _nextHandAt(Json json) {
+  final ms = json['nextHandInMs'];
+  if (ms is num) return DateTime.now().add(Duration(milliseconds: ms.round()));
+  final at = json['nextHandAt'];
+  return at is String ? DateTime.parse(at).toLocal() : null;
 }
 
 /// Mensaje del chat de la mesa
