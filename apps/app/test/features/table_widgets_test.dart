@@ -146,6 +146,39 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('teléfono en horizontal: controles en columna estrecha sin desbordes', (tester) async {
+    final s = stateFrom('table_state_in_hand');
+    final mySeat = s.seatAt(s.you!.seatNumber)!;
+    final calls = <String>[];
+    await pump(
+      tester,
+      Align(
+        alignment: Alignment.bottomRight,
+        child: SizedBox(
+          width: 196,
+          child: TableControls(
+            vertical: true,
+            legal: s.you!.legalActions,
+            hand: s.hand!,
+            mySeat: mySeat,
+            status: 'TU TURNO',
+            preAction: null,
+            onPreAction: (_) {},
+            onAction: (action, {amount}) async => calls.add(action),
+          ),
+        ),
+      ),
+      const Size(873, 393),
+    );
+    expect(tester.takeException(), isNull);
+    // De arriba abajo: subir, igualar, retirarse
+    final y = [for (final t in ['SUBIR', 'IGUALAR', 'RETIRARSE']) tester.getCenter(find.text(t)).dy];
+    expect(y[0] < y[1] && y[1] < y[2], isTrue);
+    await tester.tap(find.text('IGUALAR'));
+    await tester.pumpAndSettle();
+    expect(calls, ['call']);
+  });
+
   test('cartas ganadoras del showdown', () {
     final last = stateFrom('table_state_showdown').lastHand!;
     expect(last.winningCards, {'5s', '5c', '5h', '6h', '6c'});

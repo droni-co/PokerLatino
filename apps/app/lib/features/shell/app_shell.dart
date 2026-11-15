@@ -31,16 +31,20 @@ class AppShell extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final wide = MediaQuery.sizeOf(context).width >= 800;
+    final size = MediaQuery.sizeOf(context);
+    // Teléfono en horizontal: barra superior más baja y menú lateral (una barra inferior
+    // se comería media pantalla)
+    final short = size.height < 500;
+    final wide = size.width >= 800 || (short && size.width > size.height);
     void go(int i) => context.go(_destinations[i].path);
 
     final appBar = AppBar(
       backgroundColor: Colors.transparent,
       surfaceTintColor: Colors.transparent,
-      toolbarHeight: 64,
+      toolbarHeight: short ? 50 : 64,
       titleSpacing: 12,
       flexibleSpace: const _BarBackground(top: true),
-      title: const LogoMark(height: 50),
+      title: LogoMark(height: short ? 40 : 50),
       actions: const [_Balances(), SizedBox(width: 10), _AccountMenu(), SizedBox(width: 10)],
     );
 
@@ -59,7 +63,8 @@ class AppShell extends ConsumerWidget {
                 child: NavigationRail(
                   selectedIndex: _index,
                   onDestinationSelected: go,
-                  labelType: NavigationRailLabelType.all,
+                  // Con poca altura solo lleva texto la sección activa, para que quepan las cuatro
+                  labelType: short ? NavigationRailLabelType.selected : NavigationRailLabelType.all,
                   destinations: [
                     for (final d in _destinations)
                       NavigationRailDestination(

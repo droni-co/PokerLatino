@@ -39,6 +39,7 @@ class TableScene extends StatefulWidget {
     this.onSitAt,
     this.animate = true,
     this.chatBubbles = const {},
+    this.background = true,
   });
 
   final TableState state;
@@ -46,6 +47,9 @@ class TableScene extends StatefulWidget {
 
   /// Último mensaje de chat de cada jugador (playerId) que aún se muestra sobre su avatar
   final Map<int, ChatMessage> chatBubbles;
+
+  /// false cuando la página pinta el fondo detrás de toda la pantalla (escena + controles)
+  final bool background;
 
   /// Si el jugador no está sentado, permite elegir asiento
   final void Function(int seatNumber)? onSitAt;
@@ -310,7 +314,7 @@ class _TableSceneState extends State<TableScene> {
         final a = g.avatarSize;
 
         final children = <Widget>[
-          const Positioned.fill(child: RepaintBoundary(child: TableBackground())),
+          if (widget.background) const Positioned.fill(child: RepaintBoundary(child: TableBackground())),
           // Crupier (imagen) detrás del riel superior
           if (DealerFigure.hasImage)
             Positioned(

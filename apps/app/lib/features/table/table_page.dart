@@ -20,9 +20,12 @@ import 'widgets/action_bar.dart';
 import 'widgets/chat_panel.dart';
 import 'widgets/hand_rankings.dart';
 import 'widgets/table_scene.dart';
+import 'widgets/table_surface.dart';
 
 /// Ancho a partir del cual los controles flotan abajo a la derecha (como en escritorio)
-const _floatingControlsWidth = 1100.0;
+/// Desde este ancho el panel de acciones flota abajo a la derecha sin tapar tus cartas
+/// (panel de 480 px + margen a cada lado del centro de la mesa)
+const _floatingControlsWidth = 1280.0;
 
 class TablePage extends ConsumerStatefulWidget {
   const TablePage({super.key, required this.roomId});
@@ -233,10 +236,14 @@ class _TablePageState extends ConsumerState<TablePage> {
 
   Widget _layout(BuildContext context, TableState state, int myId, List<ChatEntry> chat) {
     final mySeat = state.seatOf(myId);
-    final controls = _controls(context, state, mySeat);
+    // Teléfono en horizontal: los controles van en una columna estrecha a la derecha
+    final screen = MediaQuery.sizeOf(context);
+    final narrowSide = screen.height < 500 && screen.width > screen.height * 1.5;
+    final controls = _controls(context, state, mySeat, vertical: narrowSide);
     final reduceMotion = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
 
     final scene = TableScene(
+      background: !narrowSide,
       state: state,
       myPlayerId: myId,
       animate: !reduceMotion,
@@ -249,46 +256,56 @@ class _TablePageState extends ConsumerState<TablePage> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final floating = constraints.maxWidth >= _floatingControlsWidth;
+        // Teléfono en horizontal (poca altura): barra superior solo con iconos pequeños
+        final compact = constraints.maxHeight < 500;
+        final help = _GlassIconButton(
+          icon: Icons.help_outline_rounded,
+          tooltip: 'Manos de poker',
+          compact: compact,
+          onPressed: () => HandRankingsDialog.show(context, current: lastMine?.handName),
+        );
+        final chatButton = _ChatButton(
+          unread: _unread(chat, myId),
+          compact: compact,
+          onPressed: () => _scaffoldKey.currentState?.openEndDrawer(),
+        );
+        final menu = _TableMenu(
+          seated: mySeat != null,
+          leaving: mySeat?.leaving ?? false,
+          compact: compact,
+          onLeaveTable: () => _leave(context, thenExit: true),
+          onStandUp: mySeat == null || mySeat.leaving ? null : () => _leave(context),
+        );
         final overlay = <Widget>[
           Positioned(
             top: 0,
             left: 0,
             child: SafeArea(
-              child: _TableInfo(state: state, onBack: _back),
+              child: _TableInfo(state: state, onBack: _back, compact: compact),
             ),
           ),
           Positioned(
             top: 0,
             right: 0,
             child: SafeArea(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  _TableMenu(
-                    seated: mySeat != null,
-                    leaving: mySeat?.leaving ?? false,
-                    onLeaveTable: () => _leave(context, thenExit: true),
-                    onStandUp: mySeat == null || mySeat.leaving ? null : () => _leave(context),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    child: Column(
+              child: compact
+                  ? Padding(
+                      padding: const EdgeInsets.all(6),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [chatButton, const SizedBox(width: 6), help, const SizedBox(width: 6), menu],
+                      ),
+                    )
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        _ChatButton(
-                          unread: _unread(chat, myId),
-                          onPressed: () => _scaffoldKey.currentState?.openEndDrawer(),
-                        ),
-                        const SizedBox(height: 8),
-                        _GlassIconButton(
-                          icon: Icons.help_outline_rounded,
-                          tooltip: 'Manos de poker',
-                          onPressed: () => HandRankingsDialog.show(context, current: lastMine?.handName),
+                        menu,
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          child: Column(children: [chatButton, const SizedBox(height: 8), help]),
                         ),
                       ],
                     ),
-                  ),
-                ],
-              ),
             ),
           ),
         ];
@@ -296,32 +313,50 @@ class _TablePageState extends ConsumerState<TablePage> {
         // Teléfono en horizontal: controles en una columna a la derecha
         final side = !floating && constraints.maxWidth > constraints.maxHeight * 1.5;
         if (side) {
-          return Row(
+          final sideWidth = compact ? 200.0 : math.min(300.0, constraints.maxWidth * 0.32);
+          // Un solo fondo para toda la pantalla: la mesa y el panel lateral quedan integrados
+          return Stack(
             children: [
-              Expanded(
-                child: Stack(
-                  children: [
-                    Positioned.fill(
-                      child: Padding(padding: const EdgeInsets.only(top: 36), child: scene),
-                    ),
-                    ...overlay,
-                  ],
-                ),
-              ),
-              if (controls != null)
-                SizedBox(
-                  width: math.min(300, constraints.maxWidth * 0.32),
-                  child: SafeArea(
-                    left: false,
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(0, 8, 8, 8),
-                      child: Align(
-                        alignment: Alignment.bottomCenter,
-                        child: SingleChildScrollView(child: controls),
+              const Positioned.fill(child: RepaintBoundary(child: TableBackground())),
+              Row(
+                children: [
+                  Expanded(
+                    child: SafeArea(
+                      right: false,
+                      child: Stack(
+                        children: [
+                          Positioned.fill(
+                            child: Padding(
+                              padding: EdgeInsets.only(top: compact ? 30 : 36),
+                              child: scene,
+                            ),
+                          ),
+                          ...overlay,
+                        ],
                       ),
                     ),
                   ),
-                ),
+                  if (controls != null)
+                    Container(
+                      width: sideWidth + MediaQuery.paddingOf(context).right,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          begin: Alignment.centerLeft,
+                          end: Alignment.centerRight,
+                          colors: [Color(0x990A0E18), Color(0xE60A0E18)],
+                        ),
+                        border: Border(left: BorderSide(color: PokerColors.gold.withValues(alpha: 0.35))),
+                      ),
+                      child: SafeArea(
+                        left: false,
+                        child: Align(
+                          alignment: Alignment.bottomCenter,
+                          child: SingleChildScrollView(child: controls),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
             ],
           );
         }
@@ -360,13 +395,14 @@ class _TablePageState extends ConsumerState<TablePage> {
     );
   }
 
-  Widget? _controls(BuildContext context, TableState state, TableSeat? mySeat) {
+  Widget? _controls(BuildContext context, TableState state, TableSeat? mySeat, {bool vertical = false}) {
     final hand = state.hand;
     final legal = state.you?.legalActions;
 
     if (mySeat == null) {
       final full = state.seats.length >= state.room.maxSeats;
       return ControlPanel(
+        flat: vertical,
         child: ActionButton(
           label: full ? 'Mesa llena' : 'Sentarse a jugar',
           color: PokerColors.actionRaise,
@@ -392,6 +428,7 @@ class _TablePageState extends ConsumerState<TablePage> {
     };
 
     return TableControls(
+      vertical: vertical,
       mySeat: mySeat,
       hand: hand,
       legal: myTurn ? legal : null,
@@ -517,44 +554,50 @@ class _TablePageState extends ConsumerState<TablePage> {
 }
 
 class _TableInfo extends StatelessWidget {
-  const _TableInfo({required this.state, required this.onBack});
+  const _TableInfo({required this.state, required this.onBack, this.compact = false});
   final TableState state;
   final VoidCallback onBack;
+
+  /// Teléfono en horizontal: solo los iconos (el nombre de la mesa ya está en el paño)
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
     final room = state.room;
     return Padding(
-      padding: const EdgeInsets.all(8),
+      padding: EdgeInsets.all(compact ? 6 : 8),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _GlassIconButton(icon: Icons.arrow_back, tooltip: 'Volver al lobby', onPressed: onBack),
+          _GlassIconButton(icon: Icons.arrow_back, tooltip: 'Volver al lobby', compact: compact, onPressed: onBack),
           const SizedBox(width: 6),
           ValueListenableBuilder<bool>(
             valueListenable: Sounds.muted,
             builder: (_, muted, _) => _GlassIconButton(
               icon: muted ? Icons.volume_off : Icons.volume_up,
               tooltip: muted ? 'Activar sonido' : 'Silenciar',
+              compact: compact,
               onPressed: Sounds.toggleMute,
             ),
           ),
-          const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: _glass,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(room.name, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14)),
-                Text(
-                  'Ciegas ${formatChips(room.smallBlind)}/${formatChips(room.bigBlind)}'
-                  '${state.hand != null ? ' · Mano #${state.hand!.number}' : ''}',
-                  style: const TextStyle(fontSize: 11.5, color: PokerColors.muted),
-                ),
-              ],
+          if (!compact) ...[
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: _glass,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(room.name, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14)),
+                  Text(
+                    'Ciegas ${formatChips(room.smallBlind)}/${formatChips(room.bigBlind)}'
+                    '${state.hand != null ? ' · Mano #${state.hand!.number}' : ''}',
+                    style: const TextStyle(fontSize: 11.5, color: PokerColors.muted),
+                  ),
+                ],
+              ),
             ),
-          ),
+          ],
         ],
       ),
     );
@@ -573,7 +616,14 @@ class TableMenuForTest extends StatelessWidget {
 }
 
 class _TableMenu extends StatelessWidget {
-  const _TableMenu({required this.seated, required this.leaving, required this.onLeaveTable, required this.onStandUp});
+  const _TableMenu({
+    required this.seated,
+    required this.leaving,
+    required this.onLeaveTable,
+    required this.onStandUp,
+    this.compact = false,
+  });
+  final bool compact;
   final bool seated;
   final bool leaving;
   final VoidCallback onLeaveTable;
@@ -581,14 +631,21 @@ class _TableMenu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final compact = MediaQuery.sizeOf(context).width < 700;
-    if (compact) {
+    final popup = compact || MediaQuery.sizeOf(context).width < 700;
+    if (popup) {
       return Padding(
-        padding: const EdgeInsets.all(8),
+        padding: EdgeInsets.all(compact ? 0 : 8),
         child: PopupMenuButton<String>(
           tooltip: 'Opciones de mesa',
-          icon: const Icon(Icons.more_vert),
-          style: IconButton.styleFrom(backgroundColor: Colors.black45),
+          icon: Icon(Icons.more_vert, size: compact ? 20 : 24),
+          style: IconButton.styleFrom(
+            backgroundColor: const Color(0xB30A0E18),
+            side: const BorderSide(color: PokerColors.border),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            minimumSize: compact ? const Size.square(36) : null,
+            fixedSize: compact ? const Size.square(36) : null,
+            padding: compact ? EdgeInsets.zero : null,
+          ),
           onSelected: (v) => v == 'leave' ? onLeaveTable() : onStandUp?.call(),
           itemBuilder: (_) => [
             const PopupMenuItem(value: 'leave', child: Text('Abandonar la mesa')),
@@ -655,15 +712,28 @@ class _MenuButton extends StatelessWidget {
 }
 
 class _GlassIconButton extends StatelessWidget {
-  const _GlassIconButton({required this.icon, required this.tooltip, required this.onPressed});
+  const _GlassIconButton({required this.icon, required this.tooltip, required this.onPressed, this.compact = false});
   final IconData icon;
   final String tooltip;
   final VoidCallback onPressed;
 
+  /// Más pequeño para el teléfono en horizontal
+  final bool compact;
+
   @override
   Widget build(BuildContext context) => Container(
     decoration: _glass,
-    child: IconButton(icon: Icon(icon), tooltip: tooltip, onPressed: onPressed),
+    child: compact
+        ? SizedBox.square(
+            dimension: 36,
+            child: IconButton(
+              icon: Icon(icon, size: 20),
+              tooltip: tooltip,
+              padding: EdgeInsets.zero,
+              onPressed: onPressed,
+            ),
+          )
+        : IconButton(icon: Icon(icon), tooltip: tooltip, onPressed: onPressed),
   );
 }
 
@@ -734,7 +804,8 @@ class _BuyInDialogState extends State<BuyInDialog> {
 
 /// Botón del chat con el contador de mensajes sin leer
 class _ChatButton extends StatelessWidget {
-  const _ChatButton({required this.unread, required this.onPressed});
+  const _ChatButton({required this.unread, required this.onPressed, this.compact = false});
+  final bool compact;
   final int unread;
   final VoidCallback onPressed;
 
@@ -744,6 +815,11 @@ class _ChatButton extends StatelessWidget {
     label: Text(unread > 9 ? '9+' : '$unread'),
     backgroundColor: PokerColors.red,
     offset: const Offset(-2, 2),
-    child: _GlassIconButton(icon: Icons.chat_bubble_outline_rounded, tooltip: 'Chat de la mesa', onPressed: onPressed),
+    child: _GlassIconButton(
+      icon: Icons.chat_bubble_outline_rounded,
+      tooltip: 'Chat de la mesa',
+      compact: compact,
+      onPressed: onPressed,
+    ),
   );
 }

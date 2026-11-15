@@ -19,11 +19,12 @@ class LobbyPage extends ConsumerWidget {
     final levels = ref.watch(levelsProvider);
     final needsUsername = ref.watch(authControllerProvider.select((a) => a.value != null && a.value!.username == null));
 
+    final short = MediaQuery.sizeOf(context).height < 500;
+
     return Column(
       children: [
         if (needsUsername) const _UsernameBanner(),
-        const Padding(padding: EdgeInsets.fromLTRB(16, 16, 16, 0), child: _ChipsIntro()),
-        const Padding(padding: EdgeInsets.fromLTRB(16, 14, 16, 0), child: SectionTitle('Elige tu mesa')),
+        Padding(padding: EdgeInsets.fromLTRB(16, short ? 6 : 14, 16, 0), child: const SectionTitle('Elige tu mesa')),
         Expanded(
           child: RefreshIndicator(
             onRefresh: () => ref.refresh(levelsProvider.future),
@@ -33,7 +34,7 @@ class LobbyPage extends ConsumerWidget {
               data: (list) => list.isEmpty
                   ? const _Message(text: 'No hay salas disponibles.')
                   : GridView.builder(
-                      padding: const EdgeInsets.all(16),
+                      padding: EdgeInsets.fromLTRB(16, short ? 8 : 16, 16, 16),
                       gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
                         maxCrossAxisExtent: 480,
                         mainAxisExtent: 286,
@@ -47,42 +48,6 @@ class LobbyPage extends ConsumerWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-/// Recuerda que se juega solo con fichas: no se compran ni se cambian por dinero
-class _ChipsIntro extends ConsumerWidget {
-  const _ChipsIntro();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final balance = ref.watch(walletBalanceProvider);
-    return GoldPanel(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      child: Row(
-        children: [
-          const GameIcon('chips', size: 40),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  balance == null ? 'Tus fichas' : 'Tienes ${formatFichas(balance)}',
-                  style: const TextStyle(color: PokerColors.gold, fontWeight: FontWeight.w800, fontSize: 16),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Las fichas son solo para jugar: no se compran ni se cambian por dinero.',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(color: PokerColors.muted),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -273,14 +238,10 @@ class _TableChip extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                'Mesa ${table.tableNumber}',
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
-              ),
+              Text('Mesa ${table.tableNumber}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
               const SizedBox(width: 6),
               _SeatDots(taken: table.seatedCount, total: table.maxSeats),
-              if (table.isFull)
-                const Text('Llena', style: TextStyle(fontSize: 11, color: PokerColors.red)),
+              if (table.isFull) const Text('Llena', style: TextStyle(fontSize: 11, color: PokerColors.red)),
             ],
           ),
         ),

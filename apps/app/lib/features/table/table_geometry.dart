@@ -55,8 +55,7 @@ class TableGeometry {
   }
 
   /// [visualIndex] 0..maxSeats-1
-  static double seatAngle(int visualIndex, int maxSeats) =>
-      math.pi / 2 + 2 * math.pi * visualIndex / maxSeats;
+  static double seatAngle(int visualIndex, int maxSeats) => math.pi / 2 + 2 * math.pi * visualIndex / maxSeats;
 
   factory TableGeometry.compute(Size size, {required int maxSeats}) {
     final w = size.width;
@@ -64,10 +63,11 @@ class TableGeometry {
     final portrait = h > w;
 
     final avatar = (size.shortestSide * (portrait ? 0.15 : 0.13)).clamp(40.0, 88.0);
-    // Espacio para el bloque del asiento (avatar + nombre + fichas)
-    final seatBlockBelow = avatar * 0.5 + avatar * 0.62;
+    // Bajo el centro del asiento: medio anillo de turno + placa de hasta 3 líneas
+    // (nombre, fichas y jugada/estado)
+    final seatBlockBelow = avatar * 0.62 + avatar * 0.85;
     final top = avatar * (portrait ? 1.3 : 1.55); // crupier / asientos superiores
-    final bottom = seatBlockBelow + avatar * 0.15;
+    final bottom = seatBlockBelow + avatar * 0.08;
 
     double rx;
     double ry;
@@ -78,7 +78,8 @@ class TableGeometry {
     } else {
       ry = (h - top - bottom) / 2;
       rx = w / 2 - avatar * 1.55;
-      rx = math.min(rx, ry * 1.95);
+      // Pantallas alargadas (teléfono en horizontal): mesa más ovalada para aprovechar el ancho
+      rx = math.min(rx, ry * 2.25);
     }
     rx = math.max(rx, 60);
     ry = math.max(ry, 60);
@@ -88,12 +89,7 @@ class TableGeometry {
 
     final seats = [
       for (var i = 0; i < maxSeats; i++)
-        SeatGeometry.compute(
-          angle: seatAngle(i, maxSeats),
-          center: center,
-          radii: Size(rx, ry),
-          avatar: avatar,
-        ),
+        SeatGeometry.compute(angle: seatAngle(i, maxSeats), center: center, radii: Size(rx, ry), avatar: avatar),
     ];
 
     return TableGeometry._(
@@ -135,8 +131,7 @@ class SeatGeometry {
     required double avatar,
   }) {
     final dir = Offset(math.cos(angle), math.sin(angle));
-    Offset onEllipse(double k) =>
-        center + Offset(dir.dx * radii.width * k, dir.dy * radii.height * k);
+    Offset onEllipse(double k) => center + Offset(dir.dx * radii.width * k, dir.dy * radii.height * k);
 
     final seat = onEllipse(1.02);
     final toCenter = center - seat;

@@ -176,24 +176,29 @@ class _ActionButtonState extends State<ActionButton> {
 
 /// Panel de los controles del jugador, con el marco dorado del resto del juego
 class ControlPanel extends StatelessWidget {
-  const ControlPanel({super.key, required this.child});
+  const ControlPanel({super.key, required this.child, this.flat = false});
   final Widget child;
 
+  /// Sin marco ni fondo propio: va dentro de un panel lateral que ya los tiene
+  final bool flat;
+
   @override
-  Widget build(BuildContext context) => Container(
-    decoration: BoxDecoration(
-      gradient: const LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [Color(0xF21A2338), Color(0xF70C111D)],
-      ),
-      borderRadius: BorderRadius.circular(18),
-      border: Border.all(color: PokerColors.gold.withValues(alpha: 0.45)),
-      boxShadow: const [BoxShadow(color: Colors.black54, blurRadius: 18, offset: Offset(0, 6))],
-    ),
-    padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
-    child: child,
-  );
+  Widget build(BuildContext context) => flat
+      ? Padding(padding: const EdgeInsets.fromLTRB(10, 8, 10, 10), child: child)
+      : Container(
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Color(0xF21A2338), Color(0xF70C111D)],
+            ),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: PokerColors.gold.withValues(alpha: 0.45)),
+            boxShadow: const [BoxShadow(color: Colors.black54, blurRadius: 18, offset: Offset(0, 6))],
+          ),
+          padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+          child: child,
+        );
 }
 
 /// Controles del jugador sentado. Siempre muestra los mismos botones (se activan y
@@ -214,6 +219,7 @@ class TableControls extends StatefulWidget {
     this.countdownTo,
     this.showCards,
     this.onShowCards,
+    this.vertical = false,
   });
 
   final TableSeat mySeat;
@@ -234,6 +240,9 @@ class TableControls extends StatefulWidget {
   /// Entre manos, si puedo enseñar mis cartas (o ya lo hice): sustituye a las decisiones anticipadas
   final ShowCardsOption? showCards;
   final Future<void> Function()? onShowCards;
+
+  /// Columna estrecha (teléfono en horizontal): botones y decisiones uno debajo de otro
+  final bool vertical;
 
   @override
   State<TableControls> createState() => _TableControlsState();
@@ -293,8 +302,11 @@ class _TableControlsState extends State<TableControls> {
     final call = legal?.call;
     final callIsAllIn = call != null && call >= stack;
 
+    final vertical = widget.vertical;
+    final buttonHeight = vertical ? 42.0 : 54.0;
     final fold = ActionButton(
       label: 'Retirarse',
+      height: buttonHeight,
       icon: Icons.close_rounded,
       color: PokerColors.actionFold,
       onPressed: active && legal.fold ? () => _run('fold') : null,
@@ -306,12 +318,14 @@ class _TableControlsState extends State<TableControls> {
         ? ActionButton(
             label: callIsAllIn ? 'All-in' : 'Igualar',
             subtitle: formatChips(toCall),
+            height: buttonHeight,
             icon: Icons.drag_handle_rounded,
             color: callIsAllIn ? PokerColors.actionAllIn : PokerColors.actionCall,
             onPressed: active ? () => _run('call') : null,
           )
         : ActionButton(
             label: 'Pasar',
+            height: buttonHeight,
             icon: Icons.check_rounded,
             color: PokerColors.actionCall,
             onPressed: active && legal.check ? () => _run('check') : null,
@@ -323,6 +337,7 @@ class _TableControlsState extends State<TableControls> {
           ? 'Apostar'
           : 'Subir',
       icon: Icons.arrow_upward_rounded,
+      height: buttonHeight,
       color: PokerColors.actionRaise,
       dark: true,
       onPressed: active && options != null
@@ -334,6 +349,7 @@ class _TableControlsState extends State<TableControls> {
     );
 
     return ControlPanel(
+      flat: vertical,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -346,15 +362,21 @@ class _TableControlsState extends State<TableControls> {
             alignment: Alignment.bottomCenter,
             child: _sizing && options != null ? _sizer(options) : const SizedBox(width: double.infinity),
           ),
-          Row(
-            children: [
-              Expanded(child: fold),
-              const SizedBox(width: 8),
-              Expanded(child: checkOrCall),
-              const SizedBox(width: 8),
-              Expanded(child: raise),
-            ],
-          ),
+          if (vertical)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [raise, const SizedBox(height: 6), checkOrCall, const SizedBox(height: 6), fold],
+            )
+          else
+            Row(
+              children: [
+                Expanded(child: fold),
+                const SizedBox(width: 8),
+                Expanded(child: checkOrCall),
+                const SizedBox(width: 8),
+                Expanded(child: raise),
+              ],
+            ),
           const SizedBox(height: 8),
           AnimatedSwitcher(
             duration: const Duration(milliseconds: 220),
@@ -365,6 +387,7 @@ class _TableControlsState extends State<TableControls> {
                     onPressed: widget.onShowCards,
                   )
                 : _PreActions(
+                    vertical: vertical,
                     enabled: _canPreAct,
                     toCall: _toCall,
                     selected: _canPreAct ? widget.preAction : null,
@@ -610,8 +633,15 @@ class _ShowCardsRowState extends State<_ShowCardsRow> {
 
 /// Decisiones anticipadas: siempre las tres, activas solo mientras esperas tu turno
 class _PreActions extends StatelessWidget {
-  const _PreActions({required this.enabled, required this.toCall, required this.selected, required this.onChanged});
+  const _PreActions({
+    required this.enabled,
+    required this.toCall,
+    required this.selected,
+    required this.onChanged,
+    this.vertical = false,
+  });
 
+  final bool vertical;
   final bool enabled;
   final int toCall;
   final PreAction? selected;
@@ -621,14 +651,27 @@ class _PreActions extends StatelessWidget {
   Widget build(BuildContext context) {
     Widget tile(PreAction action, String label, {required bool applies, String? amount}) {
       final on = enabled && applies;
-      return Expanded(
-        child: _PreActionTile(
-          key: ValueKey('pre-${action.name}'),
-          label: label,
-          amount: amount,
-          selected: on && selected == action,
-          onTap: on ? () => onChanged(selected == action ? null : action) : null,
-        ),
+      final tile = _PreActionTile(
+        key: ValueKey('pre-${action.name}'),
+        label: label,
+        amount: amount,
+        height: vertical ? 32 : 38,
+        selected: on && selected == action,
+        onTap: on ? () => onChanged(selected == action ? null : action) : null,
+      );
+      return vertical ? tile : Expanded(child: tile);
+    }
+
+    if (vertical) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          tile(PreAction.checkFold, 'Pasar/Retirarse', applies: true),
+          const SizedBox(height: 4),
+          tile(PreAction.check, 'Pasar', applies: toCall == 0),
+          const SizedBox(height: 4),
+          tile(PreAction.call, 'Igualar', applies: toCall > 0, amount: toCall > 0 ? formatChips(toCall) : null),
+        ],
       );
     }
 
@@ -645,8 +688,16 @@ class _PreActions extends StatelessWidget {
 }
 
 class _PreActionTile extends StatelessWidget {
-  const _PreActionTile({super.key, required this.label, required this.selected, required this.onTap, this.amount});
+  const _PreActionTile({
+    super.key,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+    this.amount,
+    this.height = 38,
+  });
   final String label;
+  final double height;
   final String? amount;
   final bool selected;
   final VoidCallback? onTap;
@@ -668,7 +719,7 @@ class _PreActionTile extends StatelessWidget {
             borderRadius: BorderRadius.circular(10),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 160),
-              height: 38,
+              height: height,
               padding: const EdgeInsets.symmetric(horizontal: 6),
               decoration: BoxDecoration(
                 color: selected ? PokerColors.gold.withValues(alpha: 0.16) : Colors.black.withValues(alpha: 0.25),
