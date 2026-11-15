@@ -4,7 +4,7 @@ import RoomSeat from '#models/room_seat'
 import { DateTime } from 'luxon'
 import walletService from '#services/game/wallet_service'
 
-export type StandUpReason = 'requested' | 'inactive'
+export type StandUpReason = 'requested' | 'inactive' | 'disconnected' | 'busted'
 
 /**
  * Levanta a un jugador de la mesa: sus fichas vuelven a la billetera y se libera el asiento.
@@ -24,7 +24,11 @@ export async function cashOutSeat(
       type: 'cash_out',
       reference: { type: 'room', id: room.id },
       description:
-        reason === 'inactive' ? `Salida de ${room.name} por inactividad` : `Salida de ${room.name}`,
+        reason === 'inactive'
+          ? `Salida de ${room.name} por inactividad`
+          : reason === 'disconnected'
+            ? `Salida de ${room.name} por desconexión`
+            : `Salida de ${room.name}`,
     })
   }
   await seat.useTransaction(trx).delete()

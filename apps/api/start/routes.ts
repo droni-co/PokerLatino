@@ -15,6 +15,9 @@ const apiInfo = () => ({ name: 'Poker Latino API', version: 'v1' })
 router.get('/', apiInfo)
 router.get('/api', apiInfo)
 
+// Enlace de invitación: recuerda el código y lleva a la app
+router.get('/r/:code', [controllers.Invite, 'show']).as('invite')
+
 router.get('/health', async ({ response }) => {
   try {
     await db.rawQuery('select 1')
@@ -75,6 +78,11 @@ router
         router
           .get('wallet/transactions', [controllers.game.Wallets, 'transactions'])
           .as('wallet.transactions')
+        router.get('wallet/rescue', [controllers.game.Wallets, 'rescue']).as('wallet.rescue')
+        router
+          .post('wallet/rescue', [controllers.game.Wallets, 'claimRescue'])
+          .as('wallet.rescue.claim')
+        router.get('referrals', [controllers.game.Referrals, 'show']).as('referrals.show')
 
         router.get('levels', [controllers.game.Levels, 'index']).as('levels.index')
         router.post('levels/:id/seat', [controllers.game.Levels, 'seat']).as('levels.seat')
@@ -89,6 +97,15 @@ router
         router.post('rooms/:id/chat', [controllers.game.Chat, 'store']).as('rooms.chat.store')
 
         router.get('me/stats', [controllers.game.Stats, 'show']).as('me.stats')
+
+        router.get('tournaments', [controllers.game.Tournaments, 'index']).as('tournaments.index')
+        router.get('tournaments/:id', [controllers.game.Tournaments, 'show']).as('tournaments.show')
+        router
+          .post('tournaments/:id/entry', [controllers.game.Tournaments, 'register'])
+          .as('tournaments.register')
+        router
+          .delete('tournaments/:id/entry', [controllers.game.Tournaments, 'unregister'])
+          .as('tournaments.unregister')
       })
       .where('id', router.matchers.number())
       .use(middleware.scope({ scopes: ['game'] }))

@@ -41,6 +41,14 @@ export const registerValidator = vine.create({
     .beforeOrEqual(() =>
       DateTime.now().minus({ years: gameConfig.minimumAge }).toFormat('yyyy-MM-dd')
     ),
+  // Código de invitación (opcional): debe existir
+  referral_code: vine
+    .string()
+    .trim()
+    .toUpperCase()
+    .maxLength(16)
+    .exists({ table: 'users', column: 'referral_code' })
+    .optional(),
 })
 
 export const loginValidator = vine.create({

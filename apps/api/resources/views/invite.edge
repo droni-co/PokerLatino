@@ -1,0 +1,12 @@
+@component('components/layout', { title: 'Te invitaron a jugar' })
+  <h1>{{ name }} te invita a Poker Latino</h1>
+  <p>
+    Crea tu cuenta con su invitación y empieza con
+    <strong>
+      {{ total }}
+      fichas
+    </strong>. Las fichas son solo para jugar: no se compran ni se cambian por dinero.
+  </p>
+  <p class="hint">Código de invitación: <strong>{{ code }}</strong></p>
+  <a class="button" href="/">Jugar ahora</a>
+@end

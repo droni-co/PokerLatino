@@ -54,7 +54,7 @@ const gameConfig = {
    */
   table: {
     /** Pausa entre el final de una mano y el inicio de la siguiente */
-    nextHandDelayMs: 15_000,
+    nextHandDelayMs: 12_000,
     /** Al sentarse alguien en una mesa parada: arranque rápido */
     firstHandDelayMs: 3000,
     /**
@@ -62,6 +62,65 @@ const gameConfig = {
      * levantarlo de la mesa (sus fichas vuelven a la billetera).
      */
     maxInactiveHands: 2,
+    /**
+     * Presencia: la app consulta el estado de la mesa cada segundo. Si un jugador sentado
+     * pasa este tiempo sin consultarla (cerró la app o la pestaña, se quedó sin conexión,
+     * la dejó en segundo plano), se le levanta de la mesa como si lo hubiera pedido.
+     */
+    disconnectTimeoutSeconds: 20,
+    /** Cada cuánto se buscan jugadores desconectados */
+    presenceSweepSeconds: 5,
+  },
+
+  /**
+   * Torneos (se crean en la base de datos; cada uno define inscripción, stack, ciegas,
+   * cada cuántas manos se duplican, asientos por mesa y número de mesas)
+   */
+  tournaments: {
+    /** Cada cuánto se revisan los torneos: arrancar los que toca, eliminar, balancear mesas */
+    tickSeconds: 5,
+    /** Pausa entre que arranca el torneo y la primera mano (para que todos lleguen a su mesa) */
+    firstHandDelayMs: 10_000,
+    /** Torneos terminados o cancelados que se siguen listando (horas) */
+    listFinishedForHours: 24,
+    /**
+     * Premios según inscritos (porcentaje del bote por puesto; sin comisión).
+     * Se usa la primera fila cuyo `upTo` sea >= número de inscritos. Cobra ~15-20%.
+     */
+    payouts: [
+      { upTo: 3, percents: [100] },
+      { upTo: 9, percents: [65, 35] },
+      { upTo: 18, percents: [50, 30, 20] },
+      { upTo: 27, percents: [40, 25, 15, 12, 8] },
+      { upTo: 45, percents: [33, 22, 15, 11, 8, 6, 5] },
+      { upTo: Number.POSITIVE_INFINITY, percents: [30, 20, 13, 9, 7, 6, 5, 4, 3, 3] },
+    ],
+  },
+
+  /**
+   * Referidos: cada jugador tiene un enlace de invitación (/r/CODIGO). Cuando alguien crea
+   * su cuenta con él, ambos reciben fichas.
+   */
+  referrals: {
+    /** Fichas para quien invita */
+    referrerReward: 500,
+    /** Fichas extra para el invitado (además de las de bienvenida) */
+    referredReward: 500,
+    /** Invitaciones pagadas por jugador en 24 h (las siguientes se registran sin pago al que invita) */
+    maxRewardedPerDay: 5,
+    /** Cuentas premiadas desde una misma IP en 24 h (más allá, nadie cobra: posible abuso) */
+    maxPerIpPerDay: 2,
+    /** Cuánto se recuerda el enlace en el navegador del invitado */
+    cookieDays: 30,
+  },
+
+  /**
+   * Rescate: fichas gratis una vez cada 24 h si no alcanzan para la mesa más barata
+   * (saldo + fichas sentadas en mesas normales)
+   */
+  rescue: {
+    amount: 400,
+    cooldownHours: 24,
   },
 
   /**

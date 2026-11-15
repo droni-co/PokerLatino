@@ -17,15 +17,17 @@ class AppShell extends ConsumerWidget {
 
   static const _destinations = [
     (path: '/lobby', icon: Icons.casino_outlined, selected: Icons.casino, label: 'Salas'),
+    (path: '/tournaments', icon: Icons.emoji_events_outlined, selected: Icons.emoji_events, label: 'Torneos'),
     (path: '/wallet', icon: Icons.toll_outlined, selected: Icons.toll, label: 'Fichas'),
     (path: '/stats', icon: Icons.insights_outlined, selected: Icons.insights, label: 'Estadísticas'),
     (path: '/profile', icon: Icons.person_outline, selected: Icons.person, label: 'Perfil'),
   ];
 
   int get _index {
-    if (location.startsWith('/wallet')) return 1;
-    if (location.startsWith('/stats')) return 2;
-    if (location.startsWith('/profile')) return 3;
+    if (location.startsWith('/tournaments')) return 1;
+    if (location.startsWith('/wallet')) return 2;
+    if (location.startsWith('/stats')) return 3;
+    if (location.startsWith('/profile')) return 4;
     return 0;
   }
 

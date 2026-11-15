@@ -20,6 +20,16 @@ function createPlayer() {
 
 const table1 = () => Room.findByOrFail('slug', 'principiantes-1')
 
+async function seat(room: Room, count: number, firstSeat = 1) {
+  const players: User[] = []
+  for (let i = 0; i < count; i++) {
+    const p = await createPlayer()
+    await roomService.sit(p, room.id, { buyIn: 500, seatNumber: firstSeat + i })
+    players.push(p)
+  }
+  return players
+}
+
 /** Dos jugadores sentados y una mano repartida */
 async function headsUp() {
   const room = await table1()
@@ -30,7 +40,7 @@ async function headsUp() {
     players.push(p)
   }
   await tableManager.startHandIfReady(room.id)
-  const bySeat = (seat: number) => players[seat - 1]
+  const bySeat = (n: number) => players[n - 1]
   const toAct = async () => {
     const s = await tableManager.getState(room.id, players[0].id)
     return s.hand!.toActSeat!
@@ -109,9 +119,9 @@ test.group('Mesa · enseñar cartas', (group) => {
     const room = await table1()
     const manager = new TableManager({ timersEnabled: true, nextHandDelayMs: 60_000 })
     try {
+      const [p] = await seat(room, 2)
       manager.scheduleStart(room.id)
       manager.scheduleStart(room.id, 3000) // alguien se sienta durante la pausa
-      const p = await createPlayer()
       const state = await manager.getState(room.id, p.id)
       assert.isNull(state.hand)
       const seconds = DateTime.fromISO(state.nextHandAt!).diffNow().as('seconds')
@@ -120,5 +130,59 @@ test.group('Mesa · enseñar cartas', (group) => {
     } finally {
       manager.reset()
     }
+  })
+
+  test('con un solo jugador no hay cuenta atrás: espera a los demás', async ({ assert }) => {
+    const room = await table1()
+    const manager = new TableManager({ timersEnabled: true, nextHandDelayMs: 60_000 })
+    try {
+      const [alone] = await seat(room, 1)
+      manager.scheduleStart(room.id, 3000)
+      let state = await manager.getState(room.id, alone.id)
+      assert.isNull(state.nextHandAt)
+      assert.isNull(state.nextHandInMs)
+
+      // Llega el segundo: ya se anuncia la mano
+      await seat(room, 1, 2)
+      state = await manager.getState(room.id, alone.id)
+      assert.isNotNull(state.nextHandAt)
+    } finally {
+      manager.reset()
+    }
+  })
+
+  test('quien entra a una mesa que se vació no ve el resultado de otra partida', async ({
+    assert,
+  }) => {
+    const { room, players, bySeat, toAct } = await headsUp()
+    await tableManager.act(room.id, bySeat(await toAct()).id, { type: 'fold' })
+    const before = await tableManager.getState(room.id, players[0].id)
+    assert.isNotNull(before.lastHand)
+
+    for (const p of players) await roomService.leave(p, room.id)
+    const [newcomer] = await seat(room, 1)
+    const state = await tableManager.getState(room.id, newcomer.id)
+    assert.isNull(state.lastHand)
+    assert.isNull(state.nextHandAt)
+  })
+
+  test('si el rival se va, el ganador ve el resultado y la mesa queda esperando', async ({
+    assert,
+  }) => {
+    const { room, bySeat, toAct } = await headsUp()
+    const folder = bySeat(await toAct())
+    const winner = bySeat(folder === bySeat(1) ? 2 : 1)
+    await tableManager.act(room.id, folder.id, { type: 'fold' })
+    await roomService.leave(folder, room.id)
+
+    // Recién terminada la mano, quien la jugó todavía ve el resultado
+    const state = await tableManager.getState(room.id, winner.id)
+    assert.isNotNull(state.lastHand)
+    assert.isNull(state.nextHandAt)
+
+    // Quien llega a mirar la mesa no lo ve
+    const spectator = await createPlayer()
+    const seen = await tableManager.getState(room.id, spectator.id)
+    assert.isNull(seen.lastHand)
   })
 })

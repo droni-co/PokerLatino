@@ -8,6 +8,8 @@ import '../features/profile/profile_page.dart';
 import '../features/shell/app_shell.dart';
 import '../features/stats/stats_page.dart';
 import '../features/table/table_page.dart';
+import '../features/tournaments/tournament_page.dart';
+import '../features/tournaments/tournaments_page.dart';
 import '../features/wallet/wallet_page.dart';
 import 'providers.dart';
 
@@ -39,6 +41,11 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/lobby', builder: (_, _) => const LobbyPage()),
           // Enlaces viejos (/lobby/credits, /lobby/usd) llevan a las salas
           GoRoute(path: '/lobby/:old', redirect: (_, _) => '/lobby'),
+          GoRoute(path: '/tournaments', builder: (_, _) => const TournamentsPage()),
+          GoRoute(
+            path: '/tournaments/:id',
+            builder: (_, state) => TournamentPage(tournamentId: int.parse(state.pathParameters['id']!)),
+          ),
           GoRoute(path: '/wallet', builder: (_, _) => const WalletPage()),
           GoRoute(path: '/stats', builder: (_, _) => const StatsPage()),
           GoRoute(path: '/profile', builder: (_, _) => const ProfilePage()),

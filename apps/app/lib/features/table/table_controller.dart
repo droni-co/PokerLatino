@@ -21,11 +21,17 @@ class TableController extends AsyncNotifier<TableState> {
   Timer? _timer;
   bool _polling = false;
 
+  /// La mesa está a la vista. En segundo plano no se consulta: el servidor deja de ver
+  /// al jugador y, pasado su margen, lo levanta de la mesa (ver PresenceService).
+  bool _active = true;
+
   @override
   Future<TableState> build() async {
     final api = ref.watch(apiClientProvider);
     _timer?.cancel();
-    _timer = Timer.periodic(AppConfig.tablePollInterval, (_) => refreshSilently());
+    _timer = Timer.periodic(AppConfig.tablePollInterval, (_) {
+      if (_active) refreshSilently();
+    });
     ref.onDispose(() => _timer?.cancel());
     final chat = ref.read(tableChatProvider(roomId).notifier);
     final initial = await api.tableState(roomId, chatAfter: chat.lastId);
@@ -53,6 +59,13 @@ class TableController extends AsyncNotifier<TableState> {
     } finally {
       _polling = false;
     }
+  }
+
+  /// La app pasó a segundo plano (false) o volvió (true)
+  void setActive(bool active) {
+    if (_active == active) return;
+    _active = active;
+    if (active) refreshSilently();
   }
 
   Future<void> act(String action, {int? amount}) async {

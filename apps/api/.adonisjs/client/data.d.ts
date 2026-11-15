@@ -8,6 +8,7 @@ import type { InferData, InferVariants } from '@adonisjs/core/types/transformers
 import type PlayerStatTransformer from '#transformers/player_stat_transformer'
 import type RoomLevelTransformer from '#transformers/room_level_transformer'
 import type RoomTransformer from '#transformers/room_transformer'
+import type TournamentTransformer from '#transformers/tournament_transformer'
 import type UserTransformer from '#transformers/user_transformer'
 import type WalletTransactionTransformer from '#transformers/wallet_transaction_transformer'
 import type WalletTransformer from '#transformers/wallet_transformer'
@@ -24,6 +25,10 @@ export namespace Data {
   export type Room = InferData<RoomTransformer>
   export namespace Room {
     export type Variants = InferVariants<RoomTransformer>
+  }
+  export type Tournament = InferData<TournamentTransformer>
+  export namespace Tournament {
+    export type Variants = InferVariants<TournamentTransformer>
   }
   export type User = InferData<UserTransformer>
   export namespace User {

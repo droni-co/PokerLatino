@@ -11,7 +11,7 @@
 
   <form method="POST" action="/oauth/authorize">
     {{ csrfField() }}
-    <input type="hidden" name="nonce" value="{{ nonce }}">
+    <input type="hidden" name="nonce" value="{{ nonce }}" />
     <button type="submit" name="decision" value="approve">Permitir</button>
     <button type="submit" name="decision" value="deny" class="secondary">Cancelar</button>
   </form>

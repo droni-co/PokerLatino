@@ -9,6 +9,7 @@ import '../../core/models/models.dart';
 import '../../core/money.dart';
 import '../../core/providers.dart';
 import '../../core/theme.dart';
+import '../referrals/referral_widgets.dart';
 import '../table/table_page.dart';
 
 class LobbyPage extends ConsumerWidget {
@@ -24,6 +25,7 @@ class LobbyPage extends ConsumerWidget {
     return Column(
       children: [
         if (needsUsername) const _UsernameBanner(),
+        const OutOfChipsBanner(),
         Padding(padding: EdgeInsets.fromLTRB(16, short ? 6 : 14, 16, 0), child: const SectionTitle('Elige tu mesa')),
         Expanded(
           child: RefreshIndicator(

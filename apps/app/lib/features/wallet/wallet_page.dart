@@ -7,10 +7,13 @@ import '../../core/models/models.dart';
 import '../../core/money.dart';
 import '../../core/providers.dart';
 import '../../core/theme.dart';
+import '../referrals/referral_widgets.dart';
 
-final _transactionsProvider = FutureProvider.autoDispose<Paginated<WalletTransaction>>(
-  (ref) => ref.watch(apiClientProvider).transactions(),
-);
+final _transactionsProvider = FutureProvider.autoDispose<Paginated<WalletTransaction>>((ref) {
+  // Al cambiar el saldo (p. ej. al reclamar el rescate) se recargan los movimientos
+  ref.watch(walletProvider);
+  return ref.watch(apiClientProvider).transactions();
+});
 
 /// Fichas del jugador y sus movimientos. Las fichas no se compran ni se canjean por dinero.
 class WalletPage extends ConsumerWidget {
@@ -25,6 +28,7 @@ class WalletPage extends ConsumerWidget {
     return RefreshIndicator(
       onRefresh: () async {
         ref.invalidate(_transactionsProvider);
+        ref.invalidate(referralsProvider);
         await ref.refresh(walletProvider.future).then((_) {}, onError: (_) {});
       },
       child: ListView(
@@ -41,6 +45,9 @@ class WalletPage extends ConsumerWidget {
                     error: (e, _) => Text(e.toString()),
                     data: (w) => _BalanceCard(balance: w.balance),
                   ),
+                  const RescuePanel(),
+                  const SizedBox(height: 16),
+                  const InviteFriendsPanel(),
                   const SizedBox(height: 24),
                   const SectionTitle('Movimientos'),
                   const SizedBox(height: 8),
@@ -151,5 +158,7 @@ String _txIcon(String type) => switch (type) {
   'signup_bonus' => 'trophy',
   'buy_in' => 'wagered',
   'cash_out' => 'won',
+  'tournament_prize' => 'trophy',
+  'referral_reward' || 'referral_bonus' => 'trophy',
   _ => 'chips',
 };

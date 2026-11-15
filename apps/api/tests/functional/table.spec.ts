@@ -230,6 +230,36 @@ test.group('Mesa en vivo', (group) => {
     assert.isNull(await RoomSeat.query().where('user_id', players[1].id).first())
   })
 
+  test('quien se queda sin fichas se levanta al empezar la siguiente mano', async ({ assert }) => {
+    const { room, players } = await tableWith(3)
+    await RoomSeat.query().where('user_id', players[1].id).update({ stack: 0 })
+
+    // Durante la pausa sigue sentado (se ve el resultado con sus cartas)
+    let state = await tableManager.getState(room.id, players[0].id)
+    assert.lengthOf(state.seats, 3)
+
+    const hand = await tableManager.startHandIfReady(room.id)
+    assert.lengthOf(hand!.players, 2)
+    assert.isNull(await RoomSeat.query().where('user_id', players[1].id).first())
+    state = await tableManager.getState(room.id, players[0].id)
+    assert.lengthOf(state.seats, 2)
+  })
+
+  test('sin fichas y solo: también se levanta aunque no haya mano', async ({ assert }) => {
+    const { room, players } = await tableWith(2)
+    await RoomSeat.query().where('user_id', players[1].id).update({ stack: 0 })
+    assert.isNull(await tableManager.startHandIfReady(room.id))
+    assert.isNull(await RoomSeat.query().where('user_id', players[1].id).first())
+    assert.isNotNull(await RoomSeat.query().where('user_id', players[0].id).first())
+  })
+
+  test('tras reiniciar el servidor se levanta a quien quedó sin fichas', async ({ assert }) => {
+    const { players } = await tableWith(2)
+    await RoomSeat.query().where('user_id', players[0].id).update({ stack: 0 })
+    await tableManager.recoverInterruptedHands()
+    assert.isNull(await RoomSeat.query().where('user_id', players[0].id).first())
+  })
+
   test('sin mano en curso se levanta al instante', async ({ client }) => {
     const { room, players } = await tableWith(2)
     const res = await client.delete(`/api/v1/rooms/${room.id}/seat`).loginAs(players[0])

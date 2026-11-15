@@ -4,6 +4,8 @@ import '../auth/auth_service.dart';
 import '../config.dart';
 import '../models/models.dart';
 import '../models/table_state.dart';
+import '../models/referral.dart';
+import '../models/tournament.dart';
 import 'api_exception.dart';
 
 /// Cliente de la API del juego. Agrega el token en cada petición y,
@@ -119,6 +121,29 @@ class ApiClient {
     final json = d as Json;
     return LeaveResult(cashedOut: (json['cashedOut'] as num? ?? 0).toInt(), pending: json['pending'] as bool? ?? false);
   });
+
+  /// Tu enlace de invitación, las reglas y a quiénes invitaste
+  Future<ReferralSummary> referrals() => _get('/referrals', (d) => ReferralSummary.fromJson(d as Json));
+
+  /// Si puedes reclamar el rescate diario
+  Future<RescueStatus> rescueStatus() => _get('/wallet/rescue', (d) => RescueStatus.fromJson(d as Json));
+
+  /// Reclamar el rescate diario (409 si no toca)
+  Future<RescueStatus> claimRescue() => _send('POST', '/wallet/rescue', (d) => RescueStatus.fromJson(d as Json));
+
+  /// Torneos abiertos, en juego y terminados recientemente
+  Future<List<Tournament>> tournaments() =>
+      _get('/tournaments', (d) => [for (final t in d as List) Tournament.fromJson(t as Json)]);
+
+  Future<TournamentDetail> tournament(int id) => _get('/tournaments/$id', (d) => TournamentDetail.fromJson(d as Json));
+
+  /// Inscribirse: se cobra la inscripción en fichas
+  Future<Tournament> registerTournament(int id) =>
+      _send('POST', '/tournaments/$id/entry', (d) => Tournament.fromJson(d as Json));
+
+  /// Salirse antes de que empiece: se devuelve la inscripción
+  Future<Tournament> unregisterTournament(int id) =>
+      _send('DELETE', '/tournaments/$id/entry', (d) => Tournament.fromJson(d as Json));
 
   /// [chatAfter]: id del último mensaje de chat que ya se tiene (solo llegan los nuevos)
   Future<TableState> tableState(int roomId, {int? chatAfter}) =>

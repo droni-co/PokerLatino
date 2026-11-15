@@ -6,7 +6,7 @@ import type { NextFn } from '@adonisjs/core/types/http'
 /**
  * Prefijos que pertenecen al servidor; todo lo demás es una ruta de la app web
  */
-const SERVER_PREFIXES = ['/api', '/oauth', '/.well-known', '/health']
+const SERVER_PREFIXES = ['/api', '/oauth', '/.well-known', '/health', '/r']
 
 /**
  * La app web (Flutter, compilada en `public/`) usa rutas con path (`/lobby`, `/rooms/5`).

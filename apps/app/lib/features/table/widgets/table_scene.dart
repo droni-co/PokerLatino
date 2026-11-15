@@ -660,8 +660,8 @@ class _WaitingBanner extends StatelessWidget {
     final players = '$count/${state.room.maxSeats} sentados';
     final text = !seated
         ? 'Toca «Sentarse» para jugar · $players'
-        : count < 2
-        ? 'Esperando a otro jugador · $players'
+        : state.playableCount < 2
+        ? 'Esperando a los demás jugadores · $players'
         : 'La mano empieza en un momento…';
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 12 * scale, vertical: 5 * scale),

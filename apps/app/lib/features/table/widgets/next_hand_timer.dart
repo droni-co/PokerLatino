@@ -7,7 +7,7 @@ import '../../../core/sounds.dart';
 import '../../../core/theme.dart';
 
 /// Pausa habitual entre manos (`table.nextHandDelayMs` en la API): da la escala del anillo
-const nextHandPause = Duration(seconds: 15);
+const nextHandPause = Duration(seconds: 12);
 
 /// Cuenta atrás en el centro de la mesa hasta la siguiente mano: un anillo dorado que se vacía
 /// con los segundos en grande. En los últimos 3 segundos late y suena el tic.

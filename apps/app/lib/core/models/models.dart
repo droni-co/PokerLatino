@@ -79,6 +79,12 @@ class WalletTransaction {
         'buy_in' => 'Entrada a mesa',
         'cash_out' => 'Salida de mesa',
         'adjustment' => 'Ajuste',
+        'tournament_entry' => 'Inscripción a torneo',
+        'tournament_refund' => 'Reembolso de torneo',
+        'tournament_prize' => 'Premio de torneo',
+        'referral_reward' => 'Invitaste a un amigo',
+        'referral_bonus' => 'Bono de invitación',
+        'rescue' => 'Rescate diario',
         _ => type,
       };
 

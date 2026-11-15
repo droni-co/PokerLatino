@@ -4,6 +4,9 @@ import logger from '@adonisjs/core/services/logger'
 import db from '@adonisjs/lucid/services/db'
 import gameConfig from '#config/game'
 import Room from '#models/room'
+import Tournament from '#models/tournament'
+import TournamentEntry from '#models/tournament_entry'
+import { blindsForHand } from '#game/tournament_rules'
 import RoomSeat from '#models/room_seat'
 import Hand from '#models/hand'
 import HandPlayer from '#models/hand_player'
@@ -34,6 +37,7 @@ type Runtime = {
     result: HandResult
     /** Quienes enseñaron sus cartas voluntariamente al terminar la mano */
     shown: Set<number>
+    endedAt: DateTime
   } | null
   /** Cuándo está previsto que empiece la siguiente mano (pausa entre manos) */
   nextHandAt: DateTime | null
@@ -125,6 +129,16 @@ export class TableManager {
           .where('leave_after_hand', true)
         for (const seat of pending) await cashOutSeat(trx, room, seat)
 
+        // Quien se quedó sin fichas se levanta ahora (no al cerrar la mano, para que durante
+        // la pausa se vea el resultado con sus cartas). En torneo eso es eliminación: lo
+        // gestiona el torneo.
+        if (!room.tournamentId) {
+          const busted = await RoomSeat.query({ client: trx })
+            .where('room_id', roomId)
+            .where('stack', 0)
+          for (const seat of busted) await cashOutSeat(trx, room, seat, 'busted')
+        }
+
         const seats = await RoomSeat.query({ client: trx })
           .where('room_id', roomId)
           .where('status', 'active')
@@ -136,6 +150,16 @@ export class TableManager {
           .where('room_id', roomId)
           .orderBy('hand_number', 'desc')
           .first()
+
+        // Torneo: las ciegas se duplican cada N manos de la mesa
+        if (room.tournamentId) {
+          const tournament = await Tournament.findOrFail(room.tournamentId, { client: trx })
+          const blinds = blindsForHand(tournament, (last?.handNumber ?? 0) + 1)
+          if (room.smallBlind !== blinds.smallBlind || room.bigBlind !== blinds.bigBlind) {
+            room.merge({ smallBlind: blinds.smallBlind, bigBlind: blinds.bigBlind })
+            await room.useTransaction(trx).save()
+          }
+        }
 
         // El botón avanza al siguiente asiento ocupado
         const seatNumbers = seats.map((s) => s.seatNumber)
@@ -279,8 +303,13 @@ export class TableManager {
       .update({ status: 'cancelled', ended_at: DateTime.now().toSQL() })
     const count = Array.isArray(cancelled) ? Number(cancelled[0] ?? 0) : Number(cancelled)
 
-    // Quien pidió levantarse en una mano cancelada recupera sus fichas ahora
-    const pending = await RoomSeat.query().where('leave_after_hand', true)
+    // Quien pidió levantarse en una mano cancelada recupera sus fichas ahora, y quien se
+    // había quedado sin fichas en una mesa normal se levanta
+    const pending = await RoomSeat.query().where((q) =>
+      q
+        .where('leave_after_hand', true)
+        .orWhere((b) => b.where('stack', 0).whereHas('room', (r) => r.whereNull('tournament_id')))
+    )
     for (const seat of pending) {
       await db.transaction(async (trx) => {
         const room = await Room.query({ client: trx })
@@ -336,8 +365,15 @@ export class TableManager {
     const viewer = hand?.playerByUser(viewerId)
     const legal = viewer ? hand!.legalActions(viewer.seat) : null
     const chat = await chatService.list(roomId, options.chatAfter)
+
+    // Sin al menos 2 jugadores con fichas no empezará ninguna mano: no hay cuenta atrás
+    const playable = seats.filter((s) => s.stack > 0 && !s.leaveAfterHand).length
     const nextHandAt =
-      !hand && rt?.nextHandAt && rt.nextHandAt.diffNow().toMillis() > 0 ? rt.nextHandAt : null
+      !hand && playable >= 2 && rt?.nextHandAt && rt.nextHandAt.diffNow().toMillis() > 0
+        ? rt.nextHandAt
+        : null
+    const lastHand =
+      !hand && rt?.lastResult ? this.visibleLastResult(rt.lastResult, seats, viewerId) : null
 
     return {
       room: {
@@ -387,12 +423,76 @@ export class TableManager {
       you: viewer
         ? { seatNumber: viewer.seat, holeCards: viewer.holeCards, legalActions: legal }
         : null,
-      lastHand: rt?.lastResult ? this.lastHandView(rt, viewerId) : null,
+      lastHand: lastHand ? this.lastHandView(rt!, viewerId) : null,
+      tournament: room.tournamentId
+        ? await this.tournamentView(room, viewerId, hand ? rt!.handNumber : null)
+        : null,
       nextHandAt: nextHandAt?.toISO() ?? null,
       // Lo mismo en milisegundos: el cliente no depende de que su reloj esté en hora
       nextHandInMs: nextHandAt ? Math.max(0, Math.round(nextHandAt.diffNow().toMillis())) : null,
       chat: chat.map(publicMessage),
     }
+  }
+
+  /**
+   * Información de torneo para la mesa: nivel de ciegas, jugadores que quedan, en qué mesa
+   * está el jugador (si lo movieron a otra) y su resultado si ya terminó
+   */
+  private async tournamentView(room: Room, viewerId: number, handInProgress: number | null) {
+    const tournament = await Tournament.findOrFail(room.tournamentId!)
+    const lastHand = await Hand.query()
+      .where('room_id', room.id)
+      .whereNot('status', 'cancelled')
+      .max('hand_number as last')
+      .first()
+    const handNumber = handInProgress ?? Number(lastHand?.$extras.last ?? 0) + 1
+    const blinds = blindsForHand(tournament, handNumber)
+
+    const entries = await TournamentEntry.query().where('tournament_id', tournament.id)
+    const mine = entries.find((e) => e.userId === viewerId)
+    const mySeat = mine
+      ? await RoomSeat.query()
+          .where('user_id', viewerId)
+          .whereIn('room_id', Room.query().select('id').where('tournament_id', tournament.id))
+          .first()
+      : null
+
+    return {
+      id: tournament.id,
+      name: tournament.name,
+      status: tournament.status,
+      level: blinds.level,
+      // Manos que quedan en este nivel (contando la actual o la próxima)
+      handsToNextLevel: blinds.handsLeft,
+      nextSmallBlind: blinds.nextSmallBlind,
+      nextBigBlind: blinds.nextBigBlind,
+      playersLeft: entries.filter((e) => e.status === 'playing').length,
+      entrants: entries.length,
+      yourRoomId: mySeat?.roomId ?? null,
+      yourResult:
+        mine && (mine.status === 'eliminated' || mine.status === 'winner')
+          ? { status: mine.status, position: mine.finishPosition, prize: mine.prize }
+          : null,
+    }
+  }
+
+  /**
+   * El resultado de la última mano solo se muestra mientras tenga sentido:
+   * - si ya no queda sentado nadie que la jugó (p. ej. alguien entra a una mesa que se
+   *   había vaciado), es de otra partida: no se muestra;
+   * - con un solo jugador en la mesa se espera a los demás: solo quien la jugó la ve,
+   *   y solo durante la pausa habitual entre manos.
+   */
+  private visibleLastResult(
+    last: NonNullable<Runtime['lastResult']>,
+    seats: RoomSeat[],
+    viewerId: number
+  ) {
+    const played = new Set(last.result.players.map((p) => p.userId))
+    if (!seats.some((s) => played.has(s.userId))) return null
+    if (seats.length >= 2) return last
+    const recent = -last.endedAt.diffNow().toMillis() < this.options.nextHandDelayMs
+    return played.has(viewerId) && recent ? last : null
   }
 
   /**
@@ -492,6 +592,7 @@ export class TableManager {
     const handId = rt.handId!
 
     const stoodUp: { userId: number; reason: 'requested' | 'inactive'; cashedOut: number }[] = []
+    let tournamentId: number | null = null
 
     await db.transaction(async (trx) => {
       // Mismo bloqueo que leave(): o se levanta antes del cierre, o lo procesa este cierre
@@ -537,6 +638,8 @@ export class TableManager {
             updated_at: DateTime.now().toSQL(),
           })
 
+        // Las fichas de torneo no son de la billetera: no cuentan en las estadísticas
+        if (room.tournamentId) continue
         await trx.rawQuery(
           `UPDATE player_stats SET
              hands_played = hands_played + 1,
@@ -570,6 +673,12 @@ export class TableManager {
         { client: trx }
       )
 
+      // En torneo nadie se levanta: los eliminados y el balanceo los gestiona el torneo
+      if (room.tournamentId) {
+        tournamentId = room.tournamentId
+        return
+      }
+
       // Levantar a quien lo pidió y a los inactivos: sus fichas vuelven a la billetera
       const seats = await RoomSeat.query({ client: trx })
         .where('room_id', rt.roomId)
@@ -589,8 +698,24 @@ export class TableManager {
       logger.info({ roomId: rt.roomId, ...s }, 'Jugador levantado de la mesa')
     }
 
-    rt.lastResult = { handId, handNumber: rt.handNumber, result, shown: new Set() }
+    rt.lastResult = {
+      handId,
+      handNumber: rt.handNumber,
+      result,
+      shown: new Set(),
+      endedAt: DateTime.now(),
+    }
     this.scheduleStart(rt.roomId)
+
+    if (tournamentId) {
+      // Import dinámico: el servicio de torneos usa este TableManager
+      try {
+        const { default: tournamentService } = await import('#services/game/tournament_service')
+        await tournamentService.maintain(tournamentId)
+      } catch (error) {
+        logger.error({ err: error, roomId: rt.roomId, tournamentId }, 'Error al mantener el torneo')
+      }
+    }
   }
 
   private runtime(roomId: number) {

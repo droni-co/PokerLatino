@@ -1,6 +1,16 @@
 import { WalletTransactionSchema } from '#database/schema'
 
-export type WalletTransactionType = 'signup_bonus' | 'buy_in' | 'cash_out' | 'adjustment'
+export type WalletTransactionType =
+  | 'signup_bonus'
+  | 'buy_in'
+  | 'cash_out'
+  | 'adjustment'
+  | 'tournament_entry'
+  | 'tournament_refund'
+  | 'tournament_prize'
+  | 'referral_reward'
+  | 'referral_bonus'
+  | 'rescue'
 
 export default class WalletTransaction extends WalletTransactionSchema {
   declare id: number

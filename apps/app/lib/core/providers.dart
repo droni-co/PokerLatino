@@ -6,6 +6,8 @@ import 'api/api_client.dart';
 import 'auth/auth_service.dart';
 import 'auth/token_storage.dart';
 import 'models/models.dart';
+import 'models/referral.dart';
+import 'models/tournament.dart';
 
 final tokenStorageProvider = Provider<TokenStorage>((ref) => SecureTokenStorage());
 
@@ -77,15 +79,38 @@ final gameConfigProvider = FutureProvider<GameConfig>((ref) => ref.watch(apiClie
 /// Billetera de fichas del jugador
 final walletProvider = FutureProvider.autoDispose<Wallet>((ref) => ref.watch(apiClientProvider).wallet());
 
+/// Rescate diario: se recalcula cuando cambia la billetera
+final rescueProvider = FutureProvider.autoDispose<RescueStatus>((ref) {
+  ref.watch(walletProvider);
+  return ref.watch(apiClientProvider).rescueStatus();
+});
+
+/// Enlace de invitación y amigos invitados
+final referralsProvider = FutureProvider.autoDispose<ReferralSummary>((ref) => ref.watch(apiClientProvider).referrals());
+
 /// Fichas disponibles (null mientras carga)
 final walletBalanceProvider = Provider.autoDispose<int?>((ref) => ref.watch(walletProvider).value?.balance);
 
 final levelsProvider = FutureProvider.autoDispose<List<RoomLevel>>((ref) => ref.watch(apiClientProvider).levels());
 
-final roomProvider = FutureProvider.autoDispose.family<Room, int>(
-  (ref, id) => ref.watch(apiClientProvider).room(id),
-);
+final roomProvider = FutureProvider.autoDispose.family<Room, int>((ref, id) => ref.watch(apiClientProvider).room(id));
 
-final statsProvider = FutureProvider.autoDispose<PlayerStat>(
-  (ref) => ref.watch(apiClientProvider).stats(),
-);
+final statsProvider = FutureProvider.autoDispose<PlayerStat>((ref) => ref.watch(apiClientProvider).stats());
+
+/// Cada cuánto se actualizan los torneos (inscritos, inicio, clasificación)
+const tournamentsRefresh = Duration(seconds: 10);
+
+/// Torneos del lobby. Se actualiza solo mientras alguien lo escucha (p. ej. el aviso
+/// "tu torneo empezó" de la navegación principal)
+final tournamentsProvider = FutureProvider.autoDispose<List<Tournament>>((ref) {
+  final timer = Timer(tournamentsRefresh, ref.invalidateSelf);
+  ref.onDispose(timer.cancel);
+  return ref.watch(apiClientProvider).tournaments();
+});
+
+/// Detalle y clasificación de un torneo (se actualiza cada pocos segundos)
+final tournamentProvider = FutureProvider.autoDispose.family<TournamentDetail, int>((ref, id) {
+  final timer = Timer(const Duration(seconds: 5), ref.invalidateSelf);
+  ref.onDispose(timer.cancel);
+  return ref.watch(apiClientProvider).tournament(id);
+});

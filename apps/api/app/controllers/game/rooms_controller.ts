@@ -1,5 +1,6 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import roomService from '#services/game/room_service'
+import presenceService from '#services/game/presence_service'
 import tableManager from '#game/table_manager'
 import gameConfig from '#config/game'
 import { sitValidator } from '#validators/game'
@@ -29,6 +30,7 @@ export default class RoomsController {
     const input = await request.validateUsing(sitValidator)
     const seat = await roomService.sit(auth.getUserOrFail(), Number(params.id), input)
     await seat.load('user')
+    presenceService.touch(seat.roomId, seat.userId)
     // Si ya hay 2 o más jugadores, empieza una mano
     tableManager.scheduleStart(seat.roomId, gameConfig.table.firstHandDelayMs)
     return response.created({ data: RoomTransformer.seat(seat) })
@@ -43,12 +45,8 @@ export default class RoomsController {
    */
   async leave({ auth, params, response }: HttpContext) {
     const user = auth.getUserOrFail()
-    const roomId = Number(params.id)
-    const result = await roomService.leave(user, roomId)
-    if (result.pending) {
-      await tableManager.requestLeave(roomId, user.id)
-      return response.accepted({ data: result })
-    }
+    const result = await presenceService.standUp(user.id, Number(params.id), 'requested')
+    if (result.pending) return response.accepted({ data: result })
     return { data: result }
   }
 }

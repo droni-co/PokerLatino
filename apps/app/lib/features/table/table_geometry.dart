@@ -139,12 +139,21 @@ class SeatGeometry {
     // Perpendicular, para separar el botón del dealer de las fichas
     final side = Offset(-unit.dy, unit.dx);
 
+    // Asientos de arriba: la placa (nombre y fichas) va debajo del avatar, justo donde
+    // caerían las cartas "hacia el centro". Ahí las cartas van al lado del avatar, del lado
+    // del centro de la mesa y a la altura del avatar, para que la placa no las tape.
+    final upper = dir.dy < -0.3;
+    final towardCenterX = (center.dx - seat.dx).abs() < 1 ? 1.0 : (center.dx - seat.dx).sign;
+    final cardsPoint = upper
+        ? seat + Offset(towardCenterX * avatar * 1.05, -avatar * 0.1)
+        : seat + unit * avatar * 0.78 + side * avatar * 0.38;
+
     return SeatGeometry(
       angle: angle,
       avatarCenter: seat,
       // En los asientos de arriba la placa queda debajo del avatar: bajar las fichas
       betPoint: onEllipse(0.6) + (dir.dy < -0.3 ? Offset(0, avatar * 0.4) : Offset.zero),
-      cardsPoint: seat + unit * avatar * 0.78 + side * avatar * 0.38,
+      cardsPoint: cardsPoint,
       dealerButtonPoint: onEllipse(0.74) - side * avatar * 0.62,
     );
   }

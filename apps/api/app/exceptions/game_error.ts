@@ -21,6 +21,13 @@ export type GameErrorCode =
   | 'invalid_action'
   | 'invalid_message'
   | 'chat_rate_limited'
+  | 'tournament_not_found'
+  | 'tournament_closed'
+  | 'tournament_full'
+  | 'already_registered'
+  | 'not_registered'
+  | 'tournament_table'
+  | 'rescue_unavailable'
 
 const STATUS: Record<GameErrorCode, number> = {
   room_not_found: 404,
@@ -42,6 +49,13 @@ const STATUS: Record<GameErrorCode, number> = {
   invalid_action: 422,
   invalid_message: 422,
   chat_rate_limited: 429,
+  tournament_not_found: 404,
+  tournament_closed: 409,
+  tournament_full: 409,
+  already_registered: 409,
+  not_registered: 404,
+  tournament_table: 409,
+  rescue_unavailable: 409,
 }
 
 /**

@@ -2,6 +2,7 @@
 import type { routes } from './index.ts'
 
 export interface ApiDefinition {
+  invite: typeof routes['invite']
   token: {
     metadata: typeof routes['token.metadata']
   }
@@ -30,6 +31,12 @@ export interface ApiDefinition {
   wallet: {
     show: typeof routes['wallet.show']
     transactions: typeof routes['wallet.transactions']
+    rescue: typeof routes['wallet.rescue'] & {
+      claim: typeof routes['wallet.rescue.claim']
+    }
+  }
+  referrals: {
+    show: typeof routes['referrals.show']
   }
   levels: {
     index: typeof routes['levels.index']
@@ -46,5 +53,11 @@ export interface ApiDefinition {
     chat: typeof routes['rooms.chat'] & {
       store: typeof routes['rooms.chat.store']
     }
+  }
+  tournaments: {
+    index: typeof routes['tournaments.index']
+    show: typeof routes['tournaments.show']
+    register: typeof routes['tournaments.register']
+    unregister: typeof routes['tournaments.unregister']
   }
 }

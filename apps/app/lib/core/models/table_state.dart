@@ -1,4 +1,5 @@
 import 'models.dart';
+import 'tournament.dart';
 
 int _int(Object? v) => (v as num?)?.toInt() ?? 0;
 List<String> _cards(Object? v) => (v as List?)?.cast<String>() ?? const [];
@@ -13,6 +14,7 @@ class TableState {
     required this.lastHand,
     this.chat = const [],
     this.nextHandAt,
+    this.tournament,
   });
 
   final TableRoom room;
@@ -26,6 +28,13 @@ class TableState {
 
   /// Entre manos: cuándo empieza la siguiente (null si no hay ninguna programada)
   final DateTime? nextHandAt;
+
+  /// Mesa de torneo: nivel de ciegas, jugadores que quedan, tu mesa y tu resultado
+  final TableTournament? tournament;
+
+  /// Jugadores que pueden jugar la próxima mano (con fichas y sin estar levantándose).
+  /// Con menos de 2 no empieza ninguna: la mesa espera a los demás.
+  int get playableCount => seats.where((s) => s.stack > 0 && !s.leaving).length;
 
   TableSeat? seatOf(int playerId) {
     for (final seat in seats) {
@@ -49,6 +58,7 @@ class TableState {
     lastHand: json['lastHand'] == null ? null : LastHand.fromJson(json['lastHand'] as Json),
     chat: [for (final m in json['chat'] as List? ?? const []) ChatMessage.fromJson(m as Json)],
     nextHandAt: _nextHandAt(json),
+    tournament: json['tournament'] == null ? null : TableTournament.fromJson(json['tournament'] as Json),
   );
 }
 

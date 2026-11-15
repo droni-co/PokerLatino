@@ -180,12 +180,77 @@ con `apps/app/.metadata`) y la API; al arrancar corre migraciones y seeders (des
 mismo sondeo de la mesa. En `lastHand.players`, `bestCards` trae las 5 cartas de la mejor mano de quienes
 llegaron al showdown (la app las resalta). Los mensajes se borran a los 3 días (`config/game.ts → chat`).
 
-Entre manos hay una pausa de 15 s (`config/game.ts → table.nextHandDelayMs`) para ver el resultado; `/state`
+Entre manos hay una pausa de 12 s (`config/game.ts → table.nextHandDelayMs`) para ver el resultado; `/state`
 trae `nextHandAt` con la hora de inicio de la siguiente y `nextHandInMs` con los milisegundos que faltan (la app usa
 este último para la cuenta atrás sobre el tablero, así no depende del reloj del dispositivo). Durante esa pausa `lastHand.yourCards` trae tus cartas
 (solo a ti) y `lastHand.canShow` indica si puedes enseñarlas; quienes las enseñan aparecen en `lastHand.players`
 con `shown: true`, sus `holeCards` y su jugada (`handName`) si ya había flop. Cuando alguien se sienta en una mesa
 parada la mano arranca en 3 s (`firstHandDelayMs`), sin acortar ni alargar una pausa en curso.
+
+### Torneos
+
+Torneos multi-mesa de eliminación con inscripción en fichas (sin comisión: todo el bote se reparte).
+
+- **Inscripción** (`registering`): cobra `buy_in` de la billetera; se puede salir con reembolso completo
+  mientras no empiece. El cupo es `table_count × max_seats`.
+- **Inicio:** a la hora (`starts_at`) si el cupo está lleno; si no, en cuanto se llene (espera sin límite).
+  Se abren las mesas (`rooms` con `tournament_id`), se sortean los asientos y cada jugador recibe
+  `starting_stack` fichas de torneo (no son de la billetera). La primera mano arranca a los 10 s.
+- **Ciegas:** empiezan en `small_blind`/`big_blind` y se duplican cada `blinds_up_every_hands` manos de
+  cada mesa (si te cambian de mesa juegas el nivel de la nueva).
+- **Eliminaciones:** quien se queda sin fichas queda fuera con su puesto (si caen varios en la misma mano,
+  queda mejor quien la empezó con más fichas) y, si le toca, su premio va a la billetera.
+- **Mesas:** tras cada mano se rompe una mesa si los jugadores caben en una menos y se equilibran
+  (diferencia máxima de 1), moviendo solo a jugadores de mesas sin mano en curso. La app sigue al jugador a su nueva mesa.
+- **Premios** según inscritos (`config/game.ts → tournaments.payouts`): hasta 3 → 100%; hasta 9 → 65/35;
+  hasta 18 → 50/30/20; luego 5, 7 y 10 puestos pagados.
+- En torneo no hay "levantarse" ni expulsión por inactividad o desconexión: quien se va sigue pagando
+  ciegas (pasa o se retira solo al agotarse su tiempo). Las manos de torneo no cuentan en las estadísticas.
+
+**Crear un torneo** (hasta tener backoffice, directo en la base de datos):
+
+```sql
+INSERT INTO tournaments (slug, name, description, buy_in, starting_stack, small_blind, big_blind,
+  blinds_up_every_hands, max_seats, table_count, action_timeout_seconds, starts_at, status, created_at, updated_at)
+VALUES ('nocturno-2026-11-20', 'Torneo Nocturno', 'Dos mesas, ciegas ×2 cada 8 manos',
+  200, 1500, 10, 20, 8, 5, 2, 15, '2026-11-20 21:00:00-05', 'registering', now(), now());
+```
+
+`tournamentService.cancel(id)` cancela un torneo que no empezó y devuelve las inscripciones.
+
+| Endpoint | Descripción |
+|----------|-------------|
+| `GET /api/v1/tournaments` | Abiertos, en juego y terminados en las últimas 24 h, con `you` (tu inscripción, tu mesa y tu resultado) |
+| `GET /api/v1/tournaments/:id` | Detalle, `payouts` (premio por puesto) y `standings` (en juego por fichas, luego eliminados por puesto) |
+| `POST /api/v1/tournaments/:id/entry` | Inscribirse (`409 tournament_full`, `already_registered`, `tournament_closed`; `422 insufficient_funds`) |
+| `DELETE /api/v1/tournaments/:id/entry` | Salirse antes de que empiece (reembolso) |
+
+En una mesa de torneo `/state` trae `tournament` (nivel, manos para la subida, próximas ciegas, jugadores que
+quedan, `yourRoomId` y `yourResult`). Sentarse o levantarse a mano responde `409 tournament_table`.
+
+### Invitaciones y rescate diario
+
+Cada jugador tiene un enlace `<APP_URL>/r/CODIGO` (el código se crea la primera vez que lo pide). Al abrirlo
+se guarda una cookie `ref` (30 días) y el formulario de registro trae el código ya puesto (también se puede
+escribir a mano). Al **crear la cuenta** con un código válido:
+
+- el invitado recibe **500 fichas** además del bono de bienvenida (`referral_bonus`), y quien invita **500**
+  (`referral_reward`);
+- quien invita cobra como mucho **5 invitaciones cada 24 h**; después el invitado sigue recibiendo su bono
+  (estado `limit_reached`);
+- no cobra nadie (`blocked`) si el invitado usa un alias del email de quien invita (`+etiqueta`, puntos de
+  Gmail) o si desde la misma IP ya se premiaron 2 cuentas en 24 h.
+
+**Rescate diario**: quien no tiene fichas para la mesa más barata (billetera + fichas sentadas en mesas
+normales) puede reclamar **400 fichas** gratis una vez cada 24 h (`rescue`). La app lo ofrece en el lobby, en
+Fichas y al levantarte de la mesa sin fichas. Todo se ajusta en `config/game.ts` (`referrals`, `rescue`).
+
+| Endpoint | Descripción |
+|----------|-------------|
+| `GET /r/:code` | Página pública de invitación (guarda la cookie y lleva a la app) |
+| `GET /api/v1/referrals` | Tu código, enlace, reglas, cupo de hoy (`rewardedToday`, `nextSlotAt`) e invitados |
+| `GET /api/v1/wallet/rescue` | `{ amount, threshold, eligible, available, nextAt }` |
+| `POST /api/v1/wallet/rescue` | Reclamar el rescate (`409 rescue_unavailable` si no toca) |
 
 ### Motor de Texas Hold'em
 

@@ -23,16 +23,7 @@ export class ChatMessageSchema extends BaseModel {
 }
 
 export class HandActionSchema extends BaseModel {
-  static $columns = [
-    'action',
-    'amount',
-    'createdAt',
-    'handId',
-    'id',
-    'sequence',
-    'street',
-    'userId',
-  ] as const
+  static $columns = ['action', 'amount', 'createdAt', 'handId', 'id', 'sequence', 'street', 'userId'] as const
   $columns = HandActionSchema.$columns
   @column()
   declare action: string
@@ -53,18 +44,7 @@ export class HandActionSchema extends BaseModel {
 }
 
 export class HandPlayerSchema extends BaseModel {
-  static $columns = [
-    'amountWagered',
-    'amountWon',
-    'endingStack',
-    'folded',
-    'handId',
-    'id',
-    'seatNumber',
-    'startingStack',
-    'userId',
-    'wentToShowdown',
-  ] as const
+  static $columns = ['amountWagered', 'amountWon', 'endingStack', 'folded', 'handId', 'id', 'seatNumber', 'startingStack', 'userId', 'wentToShowdown'] as const
   $columns = HandPlayerSchema.$columns
   @column()
   declare amountWagered: number
@@ -89,18 +69,7 @@ export class HandPlayerSchema extends BaseModel {
 }
 
 export class HandSchema extends BaseModel {
-  static $columns = [
-    'bigBlind',
-    'dealerSeat',
-    'endedAt',
-    'handNumber',
-    'id',
-    'pot',
-    'roomId',
-    'smallBlind',
-    'startedAt',
-    'status',
-  ] as const
+  static $columns = ['bigBlind', 'dealerSeat', 'endedAt', 'handNumber', 'id', 'pot', 'roomId', 'smallBlind', 'startedAt', 'status'] as const
   $columns = HandSchema.$columns
   @column()
   declare bigBlind: number
@@ -125,16 +94,7 @@ export class HandSchema extends BaseModel {
 }
 
 export class OauthAccessTokenSchema extends BaseModel {
-  static $columns = [
-    'clientId',
-    'createdAt',
-    'expiresAt',
-    'familyId',
-    'id',
-    'revokedAt',
-    'tokenHash',
-    'userId',
-  ] as const
+  static $columns = ['clientId', 'createdAt', 'expiresAt', 'familyId', 'id', 'revokedAt', 'tokenHash', 'userId'] as const
   $columns = OauthAccessTokenSchema.$columns
   @column()
   declare clientId: string
@@ -155,19 +115,7 @@ export class OauthAccessTokenSchema extends BaseModel {
 }
 
 export class OauthAuthorizationCodeSchema extends BaseModel {
-  static $columns = [
-    'clientId',
-    'codeChallenge',
-    'codeChallengeMethod',
-    'codeHash',
-    'createdAt',
-    'expiresAt',
-    'familyId',
-    'id',
-    'redirectUri',
-    'usedAt',
-    'userId',
-  ] as const
+  static $columns = ['clientId', 'codeChallenge', 'codeChallengeMethod', 'codeHash', 'createdAt', 'expiresAt', 'familyId', 'id', 'redirectUri', 'usedAt', 'userId'] as const
   $columns = OauthAuthorizationCodeSchema.$columns
   @column()
   declare clientId: string
@@ -194,15 +142,7 @@ export class OauthAuthorizationCodeSchema extends BaseModel {
 }
 
 export class OauthClientSchema extends BaseModel {
-  static $columns = [
-    'createdAt',
-    'id',
-    'isFirstParty',
-    'name',
-    'revokedAt',
-    'secretHash',
-    'updatedAt',
-  ] as const
+  static $columns = ['createdAt', 'id', 'isFirstParty', 'name', 'revokedAt', 'secretHash', 'updatedAt'] as const
   $columns = OauthClientSchema.$columns
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
@@ -221,18 +161,7 @@ export class OauthClientSchema extends BaseModel {
 }
 
 export class OauthRefreshTokenSchema extends BaseModel {
-  static $columns = [
-    'accessTokenId',
-    'clientId',
-    'createdAt',
-    'expiresAt',
-    'familyId',
-    'id',
-    'replacedById',
-    'revokedAt',
-    'tokenHash',
-    'userId',
-  ] as const
+  static $columns = ['accessTokenId', 'clientId', 'createdAt', 'expiresAt', 'familyId', 'id', 'replacedById', 'revokedAt', 'tokenHash', 'userId'] as const
   $columns = OauthRefreshTokenSchema.$columns
   @column()
   declare accessTokenId: string
@@ -257,18 +186,7 @@ export class OauthRefreshTokenSchema extends BaseModel {
 }
 
 export class PlayerStatSchema extends BaseModel {
-  static $columns = [
-    'biggestPotWon',
-    'createdAt',
-    'handsPlayed',
-    'handsWon',
-    'id',
-    'showdownsReached',
-    'totalWagered',
-    'totalWon',
-    'updatedAt',
-    'userId',
-  ] as const
+  static $columns = ['biggestPotWon', 'createdAt', 'handsPlayed', 'handsWon', 'id', 'showdownsReached', 'totalWagered', 'totalWon', 'updatedAt', 'userId'] as const
   $columns = PlayerStatSchema.$columns
   @column()
   declare biggestPotWon: number
@@ -292,23 +210,29 @@ export class PlayerStatSchema extends BaseModel {
   declare userId: number
 }
 
+export class ReferralSchema extends BaseModel {
+  static $columns = ['createdAt', 'id', 'ip', 'referredId', 'referredReward', 'referrerId', 'referrerReward', 'status'] as const
+  $columns = ReferralSchema.$columns
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare ip: string | null
+  @column()
+  declare referredId: number
+  @column()
+  declare referredReward: number
+  @column()
+  declare referrerId: number
+  @column()
+  declare referrerReward: number
+  @column()
+  declare status: string
+}
+
 export class RoomLevelSchema extends BaseModel {
-  static $columns = [
-    'actionTimeoutSeconds',
-    'bettingStructure',
-    'bigBlind',
-    'createdAt',
-    'gameType',
-    'id',
-    'maxBuyIn',
-    'maxSeats',
-    'minBuyIn',
-    'name',
-    'slug',
-    'smallBlind',
-    'status',
-    'updatedAt',
-  ] as const
+  static $columns = ['actionTimeoutSeconds', 'bettingStructure', 'bigBlind', 'createdAt', 'gameType', 'id', 'maxBuyIn', 'maxSeats', 'minBuyIn', 'name', 'slug', 'smallBlind', 'status', 'updatedAt'] as const
   $columns = RoomLevelSchema.$columns
   @column()
   declare actionTimeoutSeconds: number
@@ -341,18 +265,7 @@ export class RoomLevelSchema extends BaseModel {
 }
 
 export class RoomSeatSchema extends BaseModel {
-  static $columns = [
-    'createdAt',
-    'id',
-    'leaveAfterHand',
-    'missedHands',
-    'roomId',
-    'seatNumber',
-    'stack',
-    'status',
-    'updatedAt',
-    'userId',
-  ] as const
+  static $columns = ['createdAt', 'id', 'leaveAfterHand', 'missedHands', 'roomId', 'seatNumber', 'stack', 'status', 'updatedAt', 'userId'] as const
   $columns = RoomSeatSchema.$columns
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
@@ -377,25 +290,7 @@ export class RoomSeatSchema extends BaseModel {
 }
 
 export class RoomSchema extends BaseModel {
-  static $columns = [
-    'actionTimeoutSeconds',
-    'bettingStructure',
-    'bigBlind',
-    'createdAt',
-    'emptySince',
-    'gameType',
-    'id',
-    'levelId',
-    'maxBuyIn',
-    'maxSeats',
-    'minBuyIn',
-    'name',
-    'slug',
-    'smallBlind',
-    'status',
-    'tableNumber',
-    'updatedAt',
-  ] as const
+  static $columns = ['actionTimeoutSeconds', 'bettingStructure', 'bigBlind', 'createdAt', 'emptySince', 'gameType', 'id', 'levelId', 'maxBuyIn', 'maxSeats', 'minBuyIn', 'name', 'slug', 'smallBlind', 'status', 'tableNumber', 'tournamentId', 'updatedAt'] as const
   $columns = RoomSchema.$columns
   @column()
   declare actionTimeoutSeconds: number
@@ -412,7 +307,7 @@ export class RoomSchema extends BaseModel {
   @column({ isPrimary: true })
   declare id: number
   @column()
-  declare levelId: number
+  declare levelId: number | null
   @column()
   declare maxBuyIn: number
   @column()
@@ -429,21 +324,80 @@ export class RoomSchema extends BaseModel {
   declare status: string
   @column()
   declare tableNumber: number
+  @column()
+  declare tournamentId: number | null
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
+}
+
+export class TournamentEntrySchema extends BaseModel {
+  static $columns = ['createdAt', 'eliminatedAt', 'finishPosition', 'id', 'prize', 'status', 'tournamentId', 'updatedAt', 'userId'] as const
+  $columns = TournamentEntrySchema.$columns
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column.dateTime()
+  declare eliminatedAt: DateTime | null
+  @column()
+  declare finishPosition: number | null
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare prize: number
+  @column()
+  declare status: string
+  @column()
+  declare tournamentId: number
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
+  @column()
+  declare userId: number
+}
+
+export class TournamentSchema extends BaseModel {
+  static $columns = ['actionTimeoutSeconds', 'bigBlind', 'blindsUpEveryHands', 'buyIn', 'createdAt', 'description', 'finishedAt', 'id', 'maxSeats', 'name', 'prizePool', 'slug', 'smallBlind', 'startedAt', 'startingStack', 'startsAt', 'status', 'tableCount', 'updatedAt'] as const
+  $columns = TournamentSchema.$columns
+  @column()
+  declare actionTimeoutSeconds: number
+  @column()
+  declare bigBlind: number
+  @column()
+  declare blindsUpEveryHands: number
+  @column()
+  declare buyIn: number
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare description: string | null
+  @column.dateTime()
+  declare finishedAt: DateTime | null
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare maxSeats: number
+  @column()
+  declare name: string
+  @column()
+  declare prizePool: number
+  @column()
+  declare slug: string
+  @column()
+  declare smallBlind: number
+  @column.dateTime()
+  declare startedAt: DateTime | null
+  @column()
+  declare startingStack: number
+  @column.dateTime()
+  declare startsAt: DateTime
+  @column()
+  declare status: string
+  @column()
+  declare tableCount: number
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime | null
 }
 
 export class UserSchema extends BaseModel {
-  static $columns = [
-    'avatar',
-    'birthDate',
-    'createdAt',
-    'email',
-    'id',
-    'password',
-    'updatedAt',
-    'username',
-  ] as const
+  static $columns = ['avatar', 'birthDate', 'createdAt', 'email', 'id', 'password', 'referralCode', 'referredById', 'updatedAt', 'username'] as const
   $columns = UserSchema.$columns
   @column()
   declare avatar: string | null
@@ -457,6 +411,10 @@ export class UserSchema extends BaseModel {
   declare id: number
   @column({ serializeAs: null })
   declare password: string
+  @column()
+  declare referralCode: string | null
+  @column()
+  declare referredById: number | null
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime | null
   @column()
@@ -464,17 +422,7 @@ export class UserSchema extends BaseModel {
 }
 
 export class WalletTransactionSchema extends BaseModel {
-  static $columns = [
-    'amount',
-    'balanceAfter',
-    'createdAt',
-    'description',
-    'id',
-    'referenceId',
-    'referenceType',
-    'type',
-    'walletId',
-  ] as const
+  static $columns = ['amount', 'balanceAfter', 'createdAt', 'description', 'id', 'referenceId', 'referenceType', 'type', 'walletId'] as const
   $columns = WalletTransactionSchema.$columns
   @column()
   declare amount: number

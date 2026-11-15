@@ -1,5 +1,6 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import tableManager from '#game/table_manager'
+import presenceService from '#services/game/presence_service'
 import { tableActionValidator, tableStateValidator } from '#validators/game'
 
 export default class TablesController {
@@ -10,7 +11,10 @@ export default class TablesController {
   async show({ auth, params, request }: HttpContext) {
     const { chatAfter } = await request.validateUsing(tableStateValidator, { data: request.qs() })
     const userId = auth.getUserOrFail().id
-    return { data: await tableManager.getState(Number(params.id), userId, { chatAfter }) }
+    const roomId = Number(params.id)
+    // Cada consulta de la mesa cuenta como "sigo aquí" (ver PresenceService)
+    presenceService.touch(roomId, userId)
+    return { data: await tableManager.getState(roomId, userId, { chatAfter }) }
   }
 
   /**
@@ -21,6 +25,7 @@ export default class TablesController {
     const roomId = Number(params.id)
     const userId = auth.getUserOrFail().id
 
+    presenceService.touch(roomId, userId)
     await tableManager.act(roomId, userId, { type: action, amount })
     return { data: await tableManager.getState(roomId, userId, { chatAfter }) }
   }

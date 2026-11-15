@@ -8,6 +8,19 @@ import type { routes } from './index.ts'
 export type ParamValue = string | number | bigint | boolean
 
 export interface Registry {
+  'invite': {
+    methods: ["GET","HEAD"]
+    pattern: '/r/:code'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { code: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/invite_controller').default['show']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/invite_controller').default['show']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/invite_controller').default['show']>>>
+    }
+  }
   'token.metadata': {
     methods: ["GET","HEAD"]
     pattern: '/.well-known/oauth-authorization-server'
@@ -216,6 +229,45 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/game/wallets_controller').default['transactions']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
+  'wallet.rescue': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/wallet/rescue'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/game/wallets_controller').default['rescue']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/game/wallets_controller').default['rescue']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/game/wallets_controller').default['rescue']>>>
+    }
+  }
+  'wallet.rescue.claim': {
+    methods: ["POST"]
+    pattern: '/api/v1/wallet/rescue'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/game/wallets_controller').default['claimRescue']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/game/wallets_controller').default['claimRescue']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/game/wallets_controller').default['claimRescue']>>>
+    }
+  }
+  'referrals.show': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/referrals'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/game/referrals_controller').default['show']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/game/referrals_controller').default['show']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/game/referrals_controller').default['show']>>>
+    }
+  }
   'levels.index': {
     methods: ["GET","HEAD"]
     pattern: '/api/v1/levels'
@@ -370,6 +422,58 @@ export interface Registry {
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/game/stats_controller').default['show']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/game/stats_controller').default['show']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/game/stats_controller').default['show']>>>
+    }
+  }
+  'tournaments.index': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/tournaments'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/game/tournaments_controller').default['index']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/game/tournaments_controller').default['index']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/game/tournaments_controller').default['index']>>>
+    }
+  }
+  'tournaments.show': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/tournaments/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/game/tournaments_controller').default['show']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/game/tournaments_controller').default['show']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/game/tournaments_controller').default['show']>>>
+    }
+  }
+  'tournaments.register': {
+    methods: ["POST"]
+    pattern: '/api/v1/tournaments/:id/entry'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/game/tournaments_controller').default['register']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/game/tournaments_controller').default['register']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/game/tournaments_controller').default['register']>>>
+    }
+  }
+  'tournaments.unregister': {
+    methods: ["DELETE"]
+    pattern: '/api/v1/tournaments/:id/entry'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/game/tournaments_controller').default['unregister']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/game/tournaments_controller').default['unregister']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/game/tournaments_controller').default['unregister']>>>
     }
   }
 }

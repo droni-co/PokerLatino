@@ -1,6 +1,7 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import WalletTransaction from '#models/wallet_transaction'
 import walletService from '#services/game/wallet_service'
+import rescueService from '#services/game/rescue_service'
 import { transactionsValidator } from '#validators/game'
 import WalletTransformer from '#transformers/wallet_transformer'
 import WalletTransactionTransformer from '#transformers/wallet_transaction_transformer'
@@ -33,5 +34,20 @@ export default class WalletsController {
       .paginate(page, perPage)
 
     return serialize(WalletTransactionTransformer.paginate(paginator.all(), paginator.getMeta()))
+  }
+
+  /**
+   * GET /api/v1/wallet/rescue: si puedes reclamar el rescate diario y cuándo
+   */
+  async rescue({ auth }: HttpContext) {
+    return { data: await rescueService.status(auth.getUserOrFail().id) }
+  }
+
+  /**
+   * POST /api/v1/wallet/rescue: reclamar el rescate (`409 rescue_unavailable` si no toca)
+   */
+  async claimRescue({ auth, response }: HttpContext) {
+    const status = await rescueService.claim(auth.getUserOrFail().id)
+    return response.created({ data: status })
   }
 }

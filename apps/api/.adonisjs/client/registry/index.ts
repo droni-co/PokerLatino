@@ -8,6 +8,12 @@ export type { Route, Path } from './schema.d.ts'
 const placeholder: any = {}
 
 const routes = {
+  'invite': {
+    methods: ["GET","HEAD"],
+    pattern: '/r/:code',
+    tokens: [[0,"r"],[1,"code"]],
+    types: placeholder as Registry['invite']['types'],
+  },
   'token.metadata': {
     methods: ["GET","HEAD"],
     pattern: '/.well-known/oauth-authorization-server',
@@ -104,6 +110,24 @@ const routes = {
     tokens: [[0,"api"],[0,"v1"],[0,"wallet"],[0,"transactions"]],
     types: placeholder as Registry['wallet.transactions']['types'],
   },
+  'wallet.rescue': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/v1/wallet/rescue',
+    tokens: [[0,"api"],[0,"v1"],[0,"wallet"],[0,"rescue"]],
+    types: placeholder as Registry['wallet.rescue']['types'],
+  },
+  'wallet.rescue.claim': {
+    methods: ["POST"],
+    pattern: '/api/v1/wallet/rescue',
+    tokens: [[0,"api"],[0,"v1"],[0,"wallet"],[0,"rescue"]],
+    types: placeholder as Registry['wallet.rescue.claim']['types'],
+  },
+  'referrals.show': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/v1/referrals',
+    tokens: [[0,"api"],[0,"v1"],[0,"referrals"]],
+    types: placeholder as Registry['referrals.show']['types'],
+  },
   'levels.index': {
     methods: ["GET","HEAD"],
     pattern: '/api/v1/levels',
@@ -175,6 +199,30 @@ const routes = {
     pattern: '/api/v1/me/stats',
     tokens: [[0,"api"],[0,"v1"],[0,"me"],[0,"stats"]],
     types: placeholder as Registry['me.stats']['types'],
+  },
+  'tournaments.index': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/v1/tournaments',
+    tokens: [[0,"api"],[0,"v1"],[0,"tournaments"]],
+    types: placeholder as Registry['tournaments.index']['types'],
+  },
+  'tournaments.show': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/v1/tournaments/:id',
+    tokens: [[0,"api"],[0,"v1"],[0,"tournaments"],[1,"id"]],
+    types: placeholder as Registry['tournaments.show']['types'],
+  },
+  'tournaments.register': {
+    methods: ["POST"],
+    pattern: '/api/v1/tournaments/:id/entry',
+    tokens: [[0,"api"],[0,"v1"],[0,"tournaments"],[1,"id"],[0,"entry"]],
+    types: placeholder as Registry['tournaments.register']['types'],
+  },
+  'tournaments.unregister': {
+    methods: ["DELETE"],
+    pattern: '/api/v1/tournaments/:id/entry',
+    tokens: [[0,"api"],[0,"v1"],[0,"tournaments"],[1,"id"],[0,"entry"]],
+    types: placeholder as Registry['tournaments.unregister']['types'],
   },
 } as const satisfies Record<string, AdonisEndpoint>
 

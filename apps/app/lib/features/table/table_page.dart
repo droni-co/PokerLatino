@@ -6,9 +6,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/api/api_client.dart';
 import '../../core/api/api_exception.dart';
 import '../../core/models/models.dart';
 import '../../core/models/table_state.dart';
+import '../../core/models/tournament.dart';
 import '../../core/money.dart';
 import '../../core/providers.dart';
 import '../../core/sounds.dart';
@@ -48,6 +50,16 @@ class _TablePageState extends ConsumerState<TablePage> {
   /// Hay un "Levantarse" en curso: su propio aviso informa el resultado
   bool _leaveInFlight = false;
 
+  /// Sentado y sin haber pedido levantarse: al salir de la mesa hay que levantarlo
+  bool _staying = false;
+
+  /// La app estuvo en segundo plano: si al volver ya no tiene asiento, fue por ausencia
+  bool _wasAway = false;
+
+  late final ApiClient _api;
+  late final ProviderContainer _container;
+  late final AppLifecycleListener _lifecycle;
+
   final _scaffoldKey = GlobalKey<ScaffoldState>();
 
   /// Último mensaje de chat visto con el panel abierto (para el contador de no leídos)
@@ -64,6 +76,11 @@ class _TablePageState extends ConsumerState<TablePage> {
   void _onState(TableState? prev, TableState next) {
     final me = ref.read(authControllerProvider).value;
     if (me != null) _checkSeatRemoved(prev, next, me.id);
+    final seat = me == null ? null : next.seatOf(me.id);
+    // En torneo salir de la pantalla no te levanta: tus ciegas siguen corriendo
+    _staying = seat != null && !seat.leaving && next.tournament == null;
+    _followTournamentMove(next.tournament);
+    if (_isVisible) _wasAway = false;
     final legal = next.you?.legalActions;
     final hand = next.hand;
     final myTurn = legal != null && hand != null;
@@ -131,7 +148,34 @@ class _TablePageState extends ConsumerState<TablePage> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    _api = ref.read(apiClientProvider);
+    _container = ProviderScope.containerOf(context, listen: false);
+    _lifecycle = AppLifecycleListener(onStateChange: _onLifecycle);
+  }
+
+  /// "inactive" no cuenta como salir: en web es solo que la ventana perdió el foco,
+  /// en móvil una llamada o el panel de notificaciones encima de la app
+  bool get _isVisible {
+    final s = WidgetsBinding.instance.lifecycleState;
+    return s == null || s == AppLifecycleState.resumed || s == AppLifecycleState.inactive;
+  }
+
+  void _onLifecycle(AppLifecycleState _) {
+    if (!_isVisible) _wasAway = true;
+    ref.read(tableControllerProvider(roomId).notifier).setActive(_isVisible);
+  }
+
+  @override
   void dispose() {
+    // Salir de la mesa (lobby, otra pantalla, atrás del navegador) es levantarse.
+    // Si cierra la app o la pestaña no llega aquí: lo levanta el servidor al dejar de verlo.
+    if (_staying && !_leaveInFlight) {
+      final container = _container;
+      _api.leave(roomId).then((_) => container.invalidate(walletProvider), onError: (_) {}).ignore();
+    }
+    _lifecycle.dispose();
     _cancelCountdown();
     _bubbleTimer?.cancel();
     super.dispose();
@@ -163,20 +207,80 @@ class _TablePageState extends ConsumerState<TablePage> {
     messenger.showSnackBar(SnackBar(content: Text(e.message)));
   }
 
+  bool _moving = false;
+
+  /// Torneo: al equilibrar las mesas te pueden cambiar de mesa. Se va a la nueva.
+  void _followTournamentMove(TableTournament? tournament) {
+    final target = tournament?.yourRoomId;
+    if (_moving || target == null || target == roomId) return;
+    _moving = true;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Te cambiamos de mesa para equilibrar el torneo. Sigues con tus fichas.')),
+    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) context.pushReplacement('/rooms/$target');
+    });
+  }
+
+  /// Torneo: eliminado o campeón
+  Future<void> _showTournamentResult(TableTournament tournament, TournamentYou result) async {
+    Sounds.play(result.status == 'winner' ? Sfx.shuffle : Sfx.error);
+    final winner = result.status == 'winner';
+    final goToStandings = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        icon: Icon(winner ? Icons.emoji_events : Icons.flag_outlined, color: PokerColors.gold, size: 40),
+        title: Text(winner ? '¡Ganaste ${tournament.name}!' : 'Quedaste eliminado'),
+        content: Text(
+          [
+            if (!winner) 'Terminaste en el puesto ${result.position}º de ${tournament.entrants}.',
+            if (result.prize > 0) 'Tu premio: ${formatFichas(result.prize)} (ya está en tu cuenta).',
+          ].join('\n'),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cerrar')),
+          FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Ver clasificación')),
+        ],
+      ),
+    );
+    if (goToStandings == true && mounted) context.pushReplacement('/tournaments/${tournament.id}');
+  }
+
   /// El servidor nos quitó el asiento: por un "Levantarse" diferido o por inactividad
   void _checkSeatRemoved(TableState? prev, TableState next, int myId) {
     final before = prev?.seatOf(myId);
     if (before == null || next.seatOf(myId) != null || _leaveInFlight) return;
+    final tournament = next.tournament;
+    if (tournament != null) {
+      // En torneo solo se pierde el asiento al quedar eliminado, al ganar o al cambiar de mesa
+      final result = tournament.yourResult;
+      _preAction = null;
+      if (result != null) {
+        ref.invalidate(walletProvider);
+        _showTournamentResult(tournament, result);
+      }
+      return;
+    }
     final requested = _leaveRequested || before.leaving;
+    final away = _wasAway;
+    final busted = before.stack == 0 && !before.inHand;
     _leaveRequested = false;
     _preAction = null;
     ref.invalidate(walletProvider);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        duration: const Duration(seconds: 6),
+        duration: Duration(seconds: busted && !requested ? 10 : 6),
+        // Sin fichas: llevarlo a donde puede conseguir más (rescate diario e invitaciones)
+        action: busted && !requested
+            ? SnackBarAction(label: 'Conseguir fichas', onPressed: () => context.go('/wallet'))
+            : null,
         content: Text(
           requested
               ? 'Te levantaste de la mesa. Tus fichas volvieron a tu cuenta.'
+              : busted
+              ? 'Te quedaste sin fichas y te levantamos de la mesa. Puedes volver a sentarte cuando quieras.'
+              : away
+              ? 'Te levantamos de la mesa porque saliste de ella. Tus fichas volvieron a tu cuenta.'
               : 'Te levantamos de la mesa por inactividad (no actuaste en varias manos seguidas). '
                     'Tus fichas volvieron a tu cuenta.',
         ),
@@ -203,33 +307,41 @@ class _TablePageState extends ConsumerState<TablePage> {
     final me = ref.watch(authControllerProvider).value;
     final chat = ref.watch(tableChatProvider(roomId));
 
-    return Scaffold(
-      key: _scaffoldKey,
-      backgroundColor: PokerColors.background,
-      endDrawer: ChatPanel(
-        roomId: roomId,
-        myPlayerId: me?.id ?? -1,
-        seatedPlayerIds: {for (final s in table.value?.seats ?? const <TableSeat>[]) s.playerId},
-      ),
-      onEndDrawerChanged: (open) => setState(() {
-        _chatOpen = open;
-        _chatSeenId = chat.isEmpty ? 0 : chat.last.message.id;
-      }),
-      body: table.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(e.toString()),
-              TextButton(
-                onPressed: () => ref.invalidate(tableControllerProvider(roomId)),
-                child: const Text('Reintentar'),
-              ),
-            ],
-          ),
+    final mySeat = me == null ? null : table.value?.seatOf(me.id);
+    // Atrás del sistema (Android) estando sentado: igual que "Abandonar la mesa"
+    return PopScope(
+      canPop: mySeat == null || mySeat.leaving || table.value?.tournament != null,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _leave(context, thenExit: true);
+      },
+      child: Scaffold(
+        key: _scaffoldKey,
+        backgroundColor: PokerColors.background,
+        endDrawer: ChatPanel(
+          roomId: roomId,
+          myPlayerId: me?.id ?? -1,
+          seatedPlayerIds: {for (final s in table.value?.seats ?? const <TableSeat>[]) s.playerId},
         ),
-        data: (state) => _layout(context, state, me?.id ?? -1, chat),
+        onEndDrawerChanged: (open) => setState(() {
+          _chatOpen = open;
+          _chatSeenId = chat.isEmpty ? 0 : chat.last.message.id;
+        }),
+        body: table.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (e, _) => Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(e.toString()),
+                TextButton(
+                  onPressed: () => ref.invalidate(tableControllerProvider(roomId)),
+                  child: const Text('Reintentar'),
+                ),
+              ],
+            ),
+          ),
+          data: (state) => _layout(context, state, me?.id ?? -1, chat),
+        ),
       ),
     );
   }
@@ -248,7 +360,7 @@ class _TablePageState extends ConsumerState<TablePage> {
       myPlayerId: myId,
       animate: !reduceMotion,
       chatBubbles: _chatBubbles(chat),
-      onSitAt: mySeat == null ? (seat) => _showBuyIn(context, seat) : null,
+      onSitAt: mySeat == null && state.tournament == null ? (seat) => _showBuyIn(context, seat) : null,
     );
     // Jugada con la que ganaste la última mano (se resalta en la ayuda)
     final lastMine = state.lastHand?.players.where((p) => p.playerId == myId).firstOrNull;
@@ -270,6 +382,7 @@ class _TablePageState extends ConsumerState<TablePage> {
           onPressed: () => _scaffoldKey.currentState?.openEndDrawer(),
         );
         final menu = _TableMenu(
+          tournament: state.tournament != null,
           seated: mySeat != null,
           leaving: mySeat?.leaving ?? false,
           compact: compact,
@@ -281,7 +394,7 @@ class _TablePageState extends ConsumerState<TablePage> {
             top: 0,
             left: 0,
             child: SafeArea(
-              child: _TableInfo(state: state, onBack: _back, compact: compact),
+              child: _TableInfo(state: state, onBack: () => _leave(context, thenExit: true), compact: compact),
             ),
           ),
           Positioned(
@@ -399,6 +512,7 @@ class _TablePageState extends ConsumerState<TablePage> {
     final hand = state.hand;
     final legal = state.you?.legalActions;
 
+    if (mySeat == null && state.tournament != null) return null;
     if (mySeat == null) {
       final full = state.seats.length >= state.room.maxSeats;
       return ControlPanel(
@@ -417,9 +531,13 @@ class _TablePageState extends ConsumerState<TablePage> {
       _ when myTurn => 'TU TURNO',
       (null, _) =>
         mySeat.stack == 0
-            ? 'Te quedaste sin fichas. Levántate para volver al lobby.'
+            ? (state.tournament != null
+                  ? 'Te quedaste sin fichas.'
+                  : 'Te quedaste sin fichas: te levantarás al empezar la próxima mano.')
             : state.nextHandAt != null
             ? 'Próxima mano en'
+            : state.playableCount < 2
+            ? 'Esperando a los demás jugadores…'
             : 'Esperando la próxima mano…',
       (_, null) => 'Entrarás en la próxima mano',
       _ when mySeat.folded => 'Te retiraste de esta mano',
@@ -474,7 +592,7 @@ class _TablePageState extends ConsumerState<TablePage> {
     final state = ref.read(tableControllerProvider(roomId)).value;
     final me = ref.read(authControllerProvider).value;
     final mySeat = state == null || me == null ? null : state.seatOf(me.id);
-    if (state == null || mySeat == null || mySeat.leaving) {
+    if (state == null || mySeat == null || mySeat.leaving || state.tournament != null) {
       if (thenExit) _back();
       return;
     }
@@ -503,6 +621,7 @@ class _TablePageState extends ConsumerState<TablePage> {
     _leaveInFlight = true;
     try {
       final result = await ref.read(tableControllerProvider(roomId).notifier).leave();
+      _staying = false;
       if (result.pending) {
         messenger.showSnackBar(
           const SnackBar(
@@ -594,6 +713,11 @@ class _TableInfo extends StatelessWidget {
                     '${state.hand != null ? ' · Mano #${state.hand!.number}' : ''}',
                     style: const TextStyle(fontSize: 11.5, color: PokerColors.muted),
                   ),
+                  if (state.tournament case final t?)
+                    Text(
+                      tournamentLevelLabel(t),
+                      style: const TextStyle(fontSize: 11.5, color: PokerColors.gold, fontWeight: FontWeight.w600),
+                    ),
                 ],
               ),
             ),
@@ -606,17 +730,24 @@ class _TableInfo extends StatelessWidget {
 
 /// Expuesto para pruebas
 class TableMenuForTest extends StatelessWidget {
-  const TableMenuForTest({super.key, required this.seated, this.leaving = false});
+  const TableMenuForTest({super.key, required this.seated, this.leaving = false, this.tournament = false});
   final bool seated;
   final bool leaving;
+  final bool tournament;
 
   @override
-  Widget build(BuildContext context) =>
-      _TableMenu(seated: seated, leaving: leaving, onLeaveTable: () {}, onStandUp: seated && !leaving ? () {} : null);
+  Widget build(BuildContext context) => _TableMenu(
+    tournament: tournament,
+    seated: seated,
+    leaving: leaving,
+    onLeaveTable: () {},
+    onStandUp: seated && !leaving ? () {} : null,
+  );
 }
 
 class _TableMenu extends StatelessWidget {
   const _TableMenu({
+    this.tournament = false,
     required this.seated,
     required this.leaving,
     required this.onLeaveTable,
@@ -624,6 +755,9 @@ class _TableMenu extends StatelessWidget {
     this.compact = false,
   });
   final bool compact;
+
+  /// Mesa de torneo: no se puede levantar; salir solo vuelve al lobby (sigue en juego)
+  final bool tournament;
   final bool seated;
   final bool leaving;
   final VoidCallback onLeaveTable;
@@ -648,8 +782,8 @@ class _TableMenu extends StatelessWidget {
           ),
           onSelected: (v) => v == 'leave' ? onLeaveTable() : onStandUp?.call(),
           itemBuilder: (_) => [
-            const PopupMenuItem(value: 'leave', child: Text('Abandonar la mesa')),
-            if (seated)
+            PopupMenuItem(value: 'leave', child: Text(tournament ? 'Salir al lobby' : 'Abandonar la mesa')),
+            if (seated && !tournament)
               PopupMenuItem(
                 value: 'stand',
                 enabled: !leaving,
@@ -665,8 +799,8 @@ class _TableMenu extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          _MenuButton(label: 'Abandonar la mesa', onPressed: onLeaveTable),
-          if (seated) ...[
+          _MenuButton(label: tournament ? 'Salir al lobby' : 'Abandonar la mesa', onPressed: onLeaveTable),
+          if (seated && !tournament) ...[
             const SizedBox(height: 6),
             _MenuButton(label: leaving ? 'Saliendo…' : 'Levantarse', onPressed: onStandUp),
           ],
@@ -822,4 +956,11 @@ class _ChatButton extends StatelessWidget {
       onPressed: onPressed,
     ),
   );
+}
+
+/// "Nivel 3 · suben a 80/160 en 2 manos · quedan 7"
+String tournamentLevelLabel(TableTournament t) {
+  final next = '${formatChips(t.nextSmallBlind)}/${formatChips(t.nextBigBlind)}';
+  final hands = t.handsToNextLevel == 1 ? 'tras esta mano' : 'en ${t.handsToNextLevel} manos';
+  return 'Nivel ${t.level} · suben a $next $hands · quedan ${t.playersLeft}';
 }

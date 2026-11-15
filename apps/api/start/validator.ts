@@ -41,6 +41,7 @@ vine.messagesProvider = new SimpleMessagesProvider(
     'date': 'Ingresa una fecha válida',
     'birth_date.date.beforeOrEqual': 'Debes ser mayor de edad para registrarte',
     'birth_date.date.afterOrEqual': 'Ingresa una fecha de nacimiento válida',
+    'referral_code.database.exists': 'Ese código de invitación no existe',
   },
   {
     email: 'email',

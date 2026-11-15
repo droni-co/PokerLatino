@@ -3,6 +3,7 @@ import { belongsTo, hasMany } from '@adonisjs/lucid/orm'
 import type { BelongsTo, HasMany } from '@adonisjs/lucid/types/relations'
 import RoomSeat from '#models/room_seat'
 import RoomLevel from '#models/room_level'
+import Tournament from '#models/tournament'
 
 export type RoomStatus = 'active' | 'paused' | 'closed'
 
@@ -13,6 +14,10 @@ export default class Room extends RoomSchema {
 
   @belongsTo(() => RoomLevel, { foreignKey: 'levelId' })
   declare level: BelongsTo<typeof RoomLevel>
+
+  /** Mesa de torneo (sin nivel): no se entra ni se sale a voluntad y sus ciegas suben */
+  @belongsTo(() => Tournament)
+  declare tournament: BelongsTo<typeof Tournament>
 
   @hasMany(() => RoomSeat)
   declare seats: HasMany<typeof RoomSeat>

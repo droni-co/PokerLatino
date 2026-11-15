@@ -8,7 +8,7 @@ import RoomSeat from '#models/room_seat'
 import Hand from '#models/hand'
 import type User from '#models/user'
 import walletService from '#services/game/wallet_service'
-import { cashOutSeat } from '#services/game/seat_cash_out'
+import { cashOutSeat, type StandUpReason } from '#services/game/seat_cash_out'
 import { GameError } from '#exceptions/game_error'
 
 const seatedCount = (room: Room) => Number(room.$extras.seatedCount ?? 0)
@@ -36,6 +36,7 @@ export class RoomService {
   list() {
     return Room.query()
       .where('status', 'active')
+      .whereNull('tournament_id')
       .withCount('seats', (q) => q.as('seatedCount'))
       .orderBy([{ column: 'big_blind' }, { column: 'table_number' }, { column: 'id' }])
   }
@@ -72,6 +73,12 @@ export class RoomService {
     return db.transaction(async (trx) => {
       const target = await Room.query({ client: trx }).where('id', roomId).first()
       if (!target) throw new GameError('room_not_found', 'La sala no existe')
+      if (target.levelId === null) {
+        throw new GameError(
+          'tournament_table',
+          'En las mesas de torneo los asientos se asignan solos'
+        )
+      }
 
       // Orden de bloqueo: nivel → mesa (igual que quickSeat y el cierre de mesas vacías)
       const level = await this.lockLevel(trx, target.levelId)
@@ -288,11 +295,17 @@ export class RoomService {
    * se marca `leave_after_hand` y el TableManager lo retira (se retira de la mano en su
    * turno) y le devuelve las fichas al terminarla. En ese caso responde `pending: true`.
    */
-  async leave(user: User, roomId: number) {
+  async leave(user: Pick<User, 'id'>, roomId: number, reason: StandUpReason = 'requested') {
     return db.transaction(async (trx) => {
       // Mismo bloqueo que sit(), el inicio y el cierre de mano: decisiones serializadas
       const room = await Room.query({ client: trx }).where('id', roomId).forUpdate().first()
       if (!room) throw new GameError('room_not_found', 'La sala no existe')
+      if (room.tournamentId) {
+        throw new GameError(
+          'tournament_table',
+          'En un torneo no puedes levantarte: si te vas, tus ciegas siguen corriendo'
+        )
+      }
 
       const seat = await RoomSeat.query({ client: trx })
         .where('room_id', roomId)
@@ -312,7 +325,7 @@ export class RoomService {
         return { cashedOut: 0, pending: true }
       }
 
-      const result = await cashOutSeat(trx, room, seat)
+      const result = await cashOutSeat(trx, room, seat, reason)
       return { ...result, pending: false }
     })
   }
