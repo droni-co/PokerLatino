@@ -6,7 +6,7 @@ if [ "${RUN_MIGRATIONS:-true}" = "true" ]; then
   node ace migration:run --force
 fi
 
-# Seeders idempotentes: cliente OAuth (redirect <APP_URL>/auth.html) y niveles de sala
+# Seeders idempotentes: niveles de sala
 if [ "${RUN_SEEDERS:-true}" = "true" ]; then
   node ace db:seed
 fi

@@ -1,23 +1,18 @@
 import { defineConfig } from '@adonisjs/auth'
-import { sessionGuard, sessionUserProvider } from '@adonisjs/auth/session'
+import { tokensGuard, tokensUserProvider } from '@adonisjs/auth/access_tokens'
 import type { InferAuthenticators, InferAuthEvents, Authenticators } from '@adonisjs/auth/types'
-import { oauthGuard } from '#auth/oauth_guard'
 
 const authConfig = defineConfig({
   default: 'api',
 
   guards: {
     /**
-     * API: access tokens OAuth2 (Authorization: Bearer ...)
+     * API: access token (Authorization: Bearer pl_...) que se obtiene al registrarse o
+     * iniciar sesión. Uno por jugador: iniciar sesión cierra la sesión anterior.
      */
-    api: oauthGuard(),
-
-    /**
-     * Web: sesión del navegador durante el flujo /oauth/authorize (login y registro)
-     */
-    web: sessionGuard({
-      useRememberMeTokens: false,
-      provider: sessionUserProvider({
+    api: tokensGuard({
+      provider: tokensUserProvider({
+        tokens: 'accessTokens',
         model: () => import('#models/user'),
       }),
     }),

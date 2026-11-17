@@ -1,12 +1,7 @@
 import { defineConfig } from '@adonisjs/shield'
-import oauthConfig from '#config/oauth'
-
-const isWebPage = (url: string) => oauthConfig.webPaths.includes(url)
-
 const shieldConfig = defineConfig({
   /**
-   * CSP para las páginas de login/registro. No se restringe `form-action` porque
-   * el navegador también lo aplica a la redirección final hacia la app (esquema custom).
+   * CSP para las páginas HTML del servidor (invitación /r/CODIGO)
    */
   csp: {
     enabled: true,
@@ -20,14 +15,11 @@ const shieldConfig = defineConfig({
   },
 
   /**
-   * CSRF solo en los formularios HTML. Los endpoints JSON (/oauth/token, /api/*)
-   * no usan cookies para autenticarse, así que no lo necesitan.
+   * Sin CSRF: la API se autentica con un token en la cabecera Authorization, no con
+   * cookies, así que otra web no puede hacer peticiones en nombre del jugador.
    */
   csrf: {
-    enabled: true,
-    exceptRoutes: (ctx) => !isWebPage(ctx.request.url()),
-    enableXsrfCookie: false,
-    methods: ['POST', 'PUT', 'PATCH', 'DELETE'],
+    enabled: false,
   },
 
   xFrame: {

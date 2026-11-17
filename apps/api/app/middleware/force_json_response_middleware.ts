@@ -1,15 +1,12 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import type { NextFn } from '@adonisjs/core/types/http'
-import oauthConfig from '#config/oauth'
 
 /**
- * Fuerza respuestas JSON en toda la API, excepto en las páginas HTML del flujo OAuth.
+ * Fuerza respuestas JSON (también en los errores) en toda la API
  */
 export default class ForceJsonResponseMiddleware {
   handle(ctx: HttpContext, next: NextFn) {
-    if (!oauthConfig.webPaths.includes(ctx.request.url())) {
-      ctx.request.request.headers.accept = 'application/json'
-    }
+    ctx.request.request.headers.accept = 'application/json'
     return next()
   }
 }

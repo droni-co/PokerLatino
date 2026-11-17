@@ -13,6 +13,7 @@ export type WalletTransactionType =
   | 'rescue'
   | 'achievement_reward'
   | 'level_reward'
+  | 'bot_refill'
 
 export default class WalletTransaction extends WalletTransactionSchema {
   declare id: number

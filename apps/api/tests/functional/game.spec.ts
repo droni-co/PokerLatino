@@ -9,7 +9,6 @@ import HandPlayer from '#models/hand_player'
 import Wallet from '#models/wallet'
 import PlayerStat from '#models/player_stat'
 import accountService from '#services/game/account_service'
-import oauthServer from '#services/oauth/oauth_server'
 
 let counter = 0
 function createPlayer(email = `jugador${++counter}@pokerlatino.test`) {
@@ -33,50 +32,44 @@ test.group('Juego · cuentas y billeteras', (group) => {
 
   test('el registro exige fecha de nacimiento y mayoría de edad', async ({ client, assert }) => {
     const register = (birthDate?: string) =>
-      client
-        .post('/oauth/register')
-        .form({
-          username: 'edad',
-          email: 'edad@pokerlatino.test',
-          password: 'secreto123',
-          password_confirmation: 'secreto123',
-          ...(birthDate ? { birth_date: birthDate } : {}),
-        })
-        .withCsrfToken()
-        .redirects(0)
+      client.post('/api/v1/auth/register').json({
+        username: 'edad',
+        email: 'edad@pokerlatino.test',
+        password: 'secreto123',
+        password_confirmation: 'secreto123',
+        ...(birthDate ? { birth_date: birthDate } : {}),
+      } as any)
 
     const missing = await register()
-    missing.assertStatus(302)
-    missing.assertFlashMessage('inputErrorsBag', { birth_date: ['Este campo es obligatorio'] })
+    missing.assertStatus(422)
+    missing.assertBodyContains({
+      errors: [{ field: 'birth_date', message: 'Este campo es obligatorio' }],
+    })
 
     const almost18 = DateTime.now().minus({ years: 18 }).plus({ days: 1 }).toISODate()!
     const underage = await register(almost18)
-    underage.assertStatus(302)
-    underage.assertFlashMessage('inputErrorsBag', {
-      birth_date: ['Debes ser mayor de edad para registrarte'],
+    underage.assertStatus(422)
+    underage.assertBodyContains({
+      errors: [{ field: 'birth_date', message: 'Debes ser mayor de edad para registrarte' }],
     })
     assert.isNull(await User.findBy('email', 'edad@pokerlatino.test'))
 
     const exactly18 = DateTime.now().minus({ years: 18 }).toISODate()!
     const ok = await register(exactly18)
-    ok.assertStatus(200)
+    ok.assertStatus(201)
     const user = await User.findByOrFail('email', 'edad@pokerlatino.test')
     assert.equal(user.birthDate.toISODate(), exactly18)
   })
 
   test('al registrarse recibe una billetera con 1000 fichas', async ({ client, assert }) => {
-    const res = await client
-      .post('/oauth/register')
-      .form({
-        username: 'nuevo',
-        email: 'nuevo@pokerlatino.test',
-        password: 'secreto123',
-        password_confirmation: 'secreto123',
-        birth_date: '1990-05-20',
-      })
-      .withCsrfToken()
-      .redirects(0)
-    res.assertStatus(200)
+    const res = await client.post('/api/v1/auth/register').json({
+      username: 'nuevo',
+      email: 'nuevo@pokerlatino.test',
+      password: 'secreto123',
+      password_confirmation: 'secreto123',
+      birth_date: '1990-05-20',
+    } as any)
+    res.assertStatus(201)
 
     const user = await User.findByOrFail('email', 'nuevo@pokerlatino.test')
     assert.equal(await balance(user), 1000)
@@ -141,11 +134,10 @@ test.group('Juego · cuentas y billeteras', (group) => {
     )
   })
 
-  test('las rutas del juego exigen el scope "game"', async ({ client }) => {
-    const user = await createPlayer()
-    const { token } = await oauthServer.issueTestToken(user, ['profile'])
-    const res = await client.get('/api/v1/rooms').bearerToken(token)
-    res.assertStatus(403)
+  test('las rutas del juego exigen iniciar sesión', async ({ client }) => {
+    const res = await client.get('/api/v1/rooms')
+    res.assertStatus(401)
+    res.assertBodyContains({ error: 'unauthorized' })
   })
 
   test('GET /game/config expone las reglas (sin comisión)', async ({ client }) => {

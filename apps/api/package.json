@@ -63,7 +63,6 @@
     "@adonisjs/core": "^7.5.2",
     "@adonisjs/cors": "^3.0.0",
     "@adonisjs/lucid": "^22.4.2",
-    "@adonisjs/session": "^8.1.0",
     "@adonisjs/shield": "^9.0.0",
     "@adonisjs/static": "^2.0.1",
     "@japa/api-client": "^3.2.1",

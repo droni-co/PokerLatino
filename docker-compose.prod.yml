@@ -19,7 +19,6 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-info}
       APP_KEY: ${APP_KEY:?APP_KEY requerido}
       APP_URL: https://${DOMAIN:?DOMAIN requerido}
-      SESSION_DRIVER: cookie
       DB_HOST: postgres
       DB_PORT: 5432
       DB_USER: ${DB_USER:-poker}

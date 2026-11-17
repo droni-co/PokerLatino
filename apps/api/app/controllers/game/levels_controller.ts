@@ -1,6 +1,7 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import roomService from '#services/game/room_service'
 import tableManager from '#game/table_manager'
+import botService from '#services/game/bot_service'
 import gameConfig from '#config/game'
 import { quickSeatValidator } from '#validators/game'
 import RoomLevelTransformer from '#transformers/room_level_transformer'
@@ -33,6 +34,7 @@ export default class LevelsController {
     const data = { roomId: seat.roomId, seat: RoomTransformer.seat(seat), alreadySeated }
     if (alreadySeated) return { data }
     tableManager.scheduleStart(seat.roomId, gameConfig.table.firstHandDelayMs)
+    botService.nudge()
     return response.created({ data })
   }
 }

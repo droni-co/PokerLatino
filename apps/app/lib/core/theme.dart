@@ -40,10 +40,7 @@ class PokerColors {
 }
 
 ThemeData buildTheme() {
-  final scheme = ColorScheme.fromSeed(
-    seedColor: PokerColors.felt,
-    brightness: Brightness.dark,
-  ).copyWith(
+  final scheme = ColorScheme.fromSeed(seedColor: PokerColors.felt, brightness: Brightness.dark).copyWith(
     primary: PokerColors.gold,
     onPrimary: const Color(0xFF1A1405),
     secondary: PokerColors.felt,
@@ -55,11 +52,7 @@ ThemeData buildTheme() {
     useMaterial3: true,
     colorScheme: scheme,
     scaffoldBackgroundColor: PokerColors.background,
-    appBarTheme: const AppBarTheme(
-      backgroundColor: PokerColors.background,
-      centerTitle: false,
-      elevation: 0,
-    ),
+    appBarTheme: const AppBarTheme(backgroundColor: PokerColors.background, centerTitle: false, elevation: 0),
     cardTheme: CardThemeData(
       color: PokerColors.surface,
       elevation: 0,
@@ -82,20 +75,20 @@ ThemeData buildTheme() {
         textStyle: const TextStyle(fontWeight: FontWeight.w700),
       ),
     ),
-    textButtonTheme: TextButtonThemeData(
-      style: TextButton.styleFrom(foregroundColor: PokerColors.gold),
-    ),
+    textButtonTheme: TextButtonThemeData(style: TextButton.styleFrom(foregroundColor: PokerColors.gold)),
     navigationBarTheme: NavigationBarThemeData(
       backgroundColor: Colors.transparent,
       indicatorColor: PokerColors.gold.withValues(alpha: 0.18),
-      iconTheme: WidgetStateProperty.resolveWith((s) => IconThemeData(
-            color: s.contains(WidgetState.selected) ? PokerColors.gold : PokerColors.muted,
-          )),
-      labelTextStyle: WidgetStateProperty.resolveWith((s) => TextStyle(
-            fontSize: 12,
-            fontWeight: s.contains(WidgetState.selected) ? FontWeight.w700 : FontWeight.w500,
-            color: s.contains(WidgetState.selected) ? PokerColors.gold : PokerColors.muted,
-          )),
+      iconTheme: WidgetStateProperty.resolveWith(
+        (s) => IconThemeData(color: s.contains(WidgetState.selected) ? PokerColors.gold : PokerColors.muted),
+      ),
+      labelTextStyle: WidgetStateProperty.resolveWith(
+        (s) => TextStyle(
+          fontSize: 12,
+          fontWeight: s.contains(WidgetState.selected) ? FontWeight.w700 : FontWeight.w500,
+          color: s.contains(WidgetState.selected) ? PokerColors.gold : PokerColors.muted,
+        ),
+      ),
     ),
     navigationRailTheme: NavigationRailThemeData(
       backgroundColor: Colors.transparent,

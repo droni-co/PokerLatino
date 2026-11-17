@@ -33,7 +33,7 @@ COPY apps/api apps/api
 RUN cd apps/api && printf '%s\n' \
   TZ=UTC PORT=3333 HOST=0.0.0.0 NODE_ENV=production LOG_LEVEL=info \
   APP_KEY=build-only-placeholder-key-000000 APP_URL=http://localhost:3333 \
-  SESSION_DRIVER=cookie DB_HOST=localhost DB_PORT=5432 DB_USER=build DB_DATABASE=build > .env
+  DB_HOST=localhost DB_PORT=5432 DB_USER=build DB_DATABASE=build > .env
 RUN pnpm --filter @poker-latino/api build
 # Dependencias de producción autocontenidas (sin symlinks al workspace)
 RUN pnpm --filter @poker-latino/api deploy --prod --legacy /prod

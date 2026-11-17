@@ -73,6 +73,46 @@ const gameConfig = {
   },
 
   /**
+   * Jugadores de la casa (bots): para que nadie se encuentre las mesas vacías.
+   *
+   * - En la primera mesa de cada nivel hay siempre un bot esperando, aunque no haya nadie.
+   * - En cualquier mesa con un solo jugador real se sienta un bot para jugar con él.
+   * - Cuando hay al menos 2 jugadores reales, el bot termina la mano y se levanta.
+   * - Antes de cada mano recarga su stack hasta el buy-in máximo de la mesa.
+   * - En las mesas se muestran como bots (`isBot`). No juegan torneos.
+   */
+  bots: {
+    enabled: true,
+    /** Cada cuánto se revisa qué mesas necesitan un bot (además de al sentarse alguien) */
+    syncIntervalSeconds: 3,
+    /** Jugadores reales a partir de los cuales el bot se retira */
+    leaveWhenHumans: 2,
+    /** Tiempo que "piensa" antes de actuar (aleatorio entre ambos) */
+    thinkMs: { min: 1200, max: 3500 },
+    /** Simulaciones Monte Carlo por decisión (más = juega mejor, cuesta más CPU) */
+    iterations: 1500,
+    /** Nombres de los bots (se crean según hagan falta; si un nombre está cogido, se numera) */
+    names: [
+      'Pancho',
+      'Lupita',
+      'DonRamon',
+      'LaChula',
+      'Chuy',
+      'Paquita',
+      'Memo',
+      'Nacho',
+      'Chela',
+      'Beto',
+      'Toña',
+      'Güero',
+      'Rocío',
+      'Chato',
+      'Fermín',
+      'Yoli',
+    ],
+  },
+
+  /**
    * Torneos (se crean en la base de datos; cada uno define inscripción, stack, ciegas,
    * cada cuántas manos se duplican, asientos por mesa y número de mesas)
    */

@@ -49,6 +49,8 @@ export class PresenceService {
       .where('leave_after_hand', false)
       // En torneo quien se desconecta sigue en juego (pasa o se retira solo en su turno)
       .whereHas('room', (q) => q.whereNull('tournament_id'))
+      // Los bots no consultan la mesa: los levanta el BotService
+      .whereHas('user', (q) => q.where('is_bot', false))
 
     const absent: { roomId: number; userId: number }[] = []
     const seated = new Set<string>()

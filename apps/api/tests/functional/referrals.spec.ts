@@ -149,36 +149,28 @@ test.group('Referidos', (group) => {
     const unknown = await client.get('/r/NOEXISTE').redirects(0)
     unknown.assertStatus(302)
 
-    const bad = await client
-      .post('/oauth/register')
-      .form({
-        username: 'invitado_malo',
-        email: 'invitado_malo@pokerlatino.test',
-        password: 'secreto123',
-        password_confirmation: 'secreto123',
-        birth_date: '1990-05-20',
-        referral_code: 'ZZZZZZZ',
-      })
-      .withCsrfToken()
-      .redirects(0)
-    bad.assertStatus(302)
-    bad.assertFlashMessage('inputErrorsBag', {
-      referral_code: ['Ese código de invitación no existe'],
+    const bad = await client.post('/api/v1/auth/register').json({
+      username: 'invitado_malo',
+      email: 'invitado_malo@pokerlatino.test',
+      password: 'secreto123',
+      password_confirmation: 'secreto123',
+      birth_date: '1990-05-20',
+      referral_code: 'ZZZZZZZ',
+    } as any)
+    bad.assertStatus(422)
+    bad.assertBodyContains({
+      errors: [{ field: 'referral_code', message: 'Ese código de invitación no existe' }],
     })
 
-    const ok = await client
-      .post('/oauth/register')
-      .form({
-        username: 'invitado_bueno',
-        email: 'invitado_bueno@pokerlatino.test',
-        password: 'secreto123',
-        password_confirmation: 'secreto123',
-        birth_date: '1990-05-20',
-        referral_code: code,
-      })
-      .withCsrfToken()
-      .redirects(0)
-    ok.assertStatus(200)
+    const ok = await client.post('/api/v1/auth/register').json({
+      username: 'invitado_bueno',
+      email: 'invitado_bueno@pokerlatino.test',
+      password: 'secreto123',
+      password_confirmation: 'secreto123',
+      birth_date: '1990-05-20',
+      referral_code: code,
+    } as any)
+    ok.assertStatus(201)
     const friend = await User.findByOrFail('email', 'invitado_bueno@pokerlatino.test')
     assert.equal(await balance(friend), 1500)
   })

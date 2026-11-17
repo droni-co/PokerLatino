@@ -88,11 +88,11 @@ class SeatView extends StatelessWidget {
             if (seat.isTurn)
               TurnRing(deadline: hand?.turnDeadline, totalSeconds: actionTimeoutSeconds, size: ring),
             PlayerAvatar(playerId: seat.playerId, avatar: seat.avatar, size: a, isMe: isMe, dimmed: out),
-            // Nivel de experiencia, abajo a la izquierda del avatar
+            // Nivel de experiencia (o insignia de bot), abajo a la izquierda del avatar
             Positioned(
               left: (ring - a) / 2 - a * 0.08,
               bottom: (ring - a) / 2 - a * 0.02,
-              child: LevelBadge(level: seat.level, size: a * 0.36),
+              child: seat.isBot ? _BotBadge(size: a * 0.36) : LevelBadge(level: seat.level, size: a * 0.36),
             ),
             if (isWinner)
               Positioned(bottom: -a * 0.02, child: WinnerRibbon(scale: s, animate: celebrate)),
@@ -144,6 +144,31 @@ class SeatView extends StatelessWidget {
           ),
         ),
       ]),
+    );
+  }
+}
+
+/// Insignia de los jugadores de la casa (bots)
+class _BotBadge extends StatelessWidget {
+  const _BotBadge({required this.size});
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: 'Bot de la casa: juega contigo mientras llegan más jugadores',
+      child: Container(
+        width: size,
+        height: size,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: const RadialGradient(colors: [Color(0xFF9FD8FF), Color(0xFF2B7FC4)]),
+          border: Border.all(color: const Color(0xFF0B1A2A), width: size * 0.08),
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.5), blurRadius: size * 0.2)],
+        ),
+        child: Icon(Icons.smart_toy, size: size * 0.62, color: const Color(0xFF0B1A2A)),
+      ),
     );
   }
 }

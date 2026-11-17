@@ -10,8 +10,8 @@ import '../models/social.dart';
 import '../models/tournament.dart';
 import 'api_exception.dart';
 
-/// Cliente de la API del juego. Agrega el token en cada petición y,
-/// si el servidor responde 401, renueva el token y reintenta una vez.
+/// Cliente de la API del juego. Agrega el token en cada petición. Si el servidor responde
+/// 401 (la sesión se abrió en otro dispositivo o venció), cierra la sesión local.
 class ApiClient {
   ApiClient(this._auth, {Dio? dio, String? baseUrl})
     : _dio =
@@ -25,25 +25,18 @@ class ApiClient {
           ) {
     _dio.interceptors.add(
       InterceptorsWrapper(
-        onRequest: (options, handler) async {
-          final token = await _auth.validAccessToken();
+        onRequest: (options, handler) {
+          final token = _auth.token;
           if (token != null) options.headers['Authorization'] = 'Bearer $token';
           handler.next(options);
         },
         onError: (error, handler) async {
-          final retried = error.requestOptions.extra['retried'] == true;
-          if (error.response?.statusCode != 401 || retried || !_auth.isSignedIn) {
-            return handler.next(error);
+          // Solo si el token rechazado es el actual (no una respuesta tardía de una sesión vieja)
+          final sent = error.requestOptions.headers['Authorization'];
+          if (error.response?.statusCode == 401 && _auth.token != null && sent == 'Bearer ${_auth.token}') {
+            await _auth.expire();
           }
-          try {
-            final tokens = await _auth.refresh();
-            final options = error.requestOptions
-              ..extra['retried'] = true
-              ..headers['Authorization'] = 'Bearer ${tokens.accessToken}';
-            handler.resolve(await _dio.fetch<dynamic>(options));
-          } catch (_) {
-            handler.next(error);
-          }
+          handler.next(error);
         },
       ),
     );

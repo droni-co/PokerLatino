@@ -19,16 +19,13 @@ class AppConfig {
     return 'http://localhost:3333';
   }
 
-  /// Cliente OAuth registrado en la API (database/seeders/oauth_client_seeder.ts)
-  static const clientId = 'poker-latino-app';
-  static const scopes = 'profile game';
-
-  /// Esquema propio para volver a la app tras el login (Android/iOS)
-  static const callbackScheme = 'co.droni.pokerlatino';
-
-  /// En web el callback es la página web/auth.html servida por la propia app
-  static String get redirectUri =>
-      kIsWeb ? '${Uri.base.origin}/auth.html' : '$callbackScheme:/oauth/callback';
+  /// Código de invitación del enlace `/r/CODIGO` (en web, la página de invitación
+  /// abre la app con `?ref=CODIGO`)
+  static String? get referralCodeFromUrl {
+    if (!kIsWeb) return null;
+    final code = Uri.base.queryParameters['ref']?.trim();
+    return code == null || code.isEmpty ? null : code;
+  }
 
   /// Cada cuánto se consulta el estado de la mesa (hasta tener tiempo real)
   static const tablePollInterval = Duration(seconds: 1);

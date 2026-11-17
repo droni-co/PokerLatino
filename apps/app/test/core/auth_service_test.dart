@@ -1,189 +1,171 @@
-import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:poker_latino/core/api/api_client.dart';
 import 'package:poker_latino/core/api/api_exception.dart';
 import 'package:poker_latino/core/auth/auth_service.dart';
-import 'package:poker_latino/core/auth/pkce.dart';
 import 'package:poker_latino/core/auth/token_storage.dart';
 
 const api = 'http://api.test';
-const redirect = 'co.droni.pokerlatino:/oauth/callback';
 
-/// Servidor OAuth simulado: responde según la ruta y registra las peticiones
+/// Servidor simulado: un solo token válido por cuenta (el último que emitió)
 class FakeServer implements HttpClientAdapter {
-  final requests = <({String path, Map<String, String> form})>[];
-  int tokenCounter = 0;
-  bool rejectRefresh = false;
-  Duration delay = Duration.zero;
+  final requests = <({String method, String path, Map<String, dynamic> body, String? auth})>[];
+  String? validToken;
+  int counter = 0;
 
   @override
   Future<ResponseBody> fetch(RequestOptions options, Stream<Uint8List>? body, Future<void>? cancel) async {
     final raw = body == null ? '' : utf8.decode(await body.expand((b) => b).toList());
-    final form = raw.isEmpty ? <String, String>{} : Uri.splitQueryString(raw);
-    requests.add((path: options.uri.path, form: form));
-    await Future<void>.delayed(delay);
+    final json = raw.isEmpty ? <String, dynamic>{} : jsonDecode(raw) as Map<String, dynamic>;
+    final auth = options.headers['Authorization'] as String?;
+    requests.add((method: options.method, path: options.uri.path, body: json, auth: auth));
 
+    final user = {'id': 1, 'email': 'ana@test.com', 'username': 'ana', 'displayName': 'ana', 'avatar': null};
     switch (options.uri.path) {
-      case '/.well-known/oauth-authorization-server':
-        return _json(200, {'issuer': api});
-      case '/oauth/token':
-        if (form['grant_type'] == 'refresh_token' && rejectRefresh) {
-          return _json(400, {'error': 'invalid_grant', 'error_description': 'Refresh token inválido'});
+      case '/api/v1/auth/login':
+        if (json['password'] != 'secreto123') {
+          return _json(401, {'error': 'invalid_credentials', 'message': 'Email o contraseña incorrectos'});
         }
-        tokenCounter++;
+        validToken = 'pl_${++counter}';
         return _json(200, {
-          'access_token': 'pl_at_$tokenCounter',
-          'refresh_token': 'pl_rt_$tokenCounter',
-          'token_type': 'Bearer',
-          'expires_in': 900,
+          'data': {'token': validToken, 'user': user},
         });
-      case '/oauth/revoke':
-        return _json(200, {});
+      case '/api/v1/auth/register':
+        if (json['username'] == 'ocupado') {
+          return _json(422, {
+            'errors': [
+              {'field': 'username', 'message': 'Ese nombre de usuario ya está en uso'},
+            ],
+          });
+        }
+        validToken = 'pl_${++counter}';
+        return _json(201, {
+          'data': {'token': validToken, 'user': user},
+        });
+      case '/api/v1/auth/logout':
+        validToken = null;
+        return ResponseBody.fromString('', 204);
+      case '/api/v1/me':
+        if (auth != 'Bearer $validToken') {
+          return _json(401, {'error': 'unauthorized', 'message': 'Tu sesión terminó'});
+        }
+        return _json(200, {'data': user});
     }
     return _json(404, {'error': 'not_found'});
   }
 
   ResponseBody _json(int status, Object data) => ResponseBody.fromString(
-        jsonEncode(data),
-        status,
-        headers: {Headers.contentTypeHeader: [Headers.jsonContentType]},
-      );
+    jsonEncode(data),
+    status,
+    headers: {
+      Headers.contentTypeHeader: [Headers.jsonContentType],
+    },
+  );
 
   @override
   void close({bool force = false}) {}
 }
 
-/// Simula el navegador: el "usuario" inicia sesión y el servidor redirige con el code
-WebAuthenticator browser({String? state, String? iss = api, String? error}) => (url, scheme) async {
-      expect(scheme, 'co.droni.pokerlatino');
-      final params = Uri.parse(url).queryParameters;
-      final query = {
-        if (error != null) 'error': error else 'code': 'pl_cs_test',
-        'state': state ?? params['state']!,
-        'iss': ?iss,
-      };
-      return Uri.parse(redirect).replace(queryParameters: query).toString();
-    };
-
 void main() {
   late FakeServer server;
   late MemoryTokenStorage storage;
 
-  AuthService service({WebAuthenticator? authenticator}) => AuthService(
-        storage: storage,
-        dio: Dio()..httpClientAdapter = server,
-        authenticator: authenticator ?? browser(),
-        apiUrl: api,
-        redirectUri: redirect,
-      );
+  AuthService service() => AuthService(storage: storage, dio: Dio()..httpClientAdapter = server, apiUrl: api);
+  ApiClient client(AuthService auth) =>
+      ApiClient(auth, dio: Dio(BaseOptions(baseUrl: '$api/api/v1'))..httpClientAdapter = server);
 
   setUp(() {
     server = FakeServer();
     storage = MemoryTokenStorage();
   });
 
-  test('login completo con PKCE guarda los tokens', () async {
-    String? authorizeUrl;
-    final auth = service(authenticator: (url, scheme) {
-      authorizeUrl = url;
-      return browser()(url, scheme);
-    });
-
-    await auth.login();
+  test('login guarda el token y lo envía en cada petición', () async {
+    final auth = service();
+    final me = await auth.login(email: 'ana@test.com', password: 'secreto123');
+    expect(me.username, 'ana');
     expect(auth.isSignedIn, isTrue);
-    expect((await storage.read())!.accessToken, 'pl_at_1');
+    expect(storage.token, 'pl_1');
 
-    final params = Uri.parse(authorizeUrl!).queryParameters;
-    expect(params['response_type'], 'code');
-    expect(params['code_challenge_method'], 'S256');
-    expect(params['redirect_uri'], redirect);
-    expect(params.containsKey('prompt'), isFalse);
-
-    // El verifier enviado al canjear el code corresponde al challenge del authorize
-    final exchange = server.requests.singleWhere((r) => r.path == '/oauth/token').form;
-    expect(exchange['grant_type'], 'authorization_code');
-    expect(exchange['code'], 'pl_cs_test');
-    expect(Pkce.challengeFor(exchange['code_verifier']!), params['code_challenge']);
+    await client(auth).me();
+    expect(server.requests.last.auth, 'Bearer pl_1');
   });
 
-  test('forceLogin pide credenciales de nuevo (prompt=login)', () async {
-    String? url;
-    await service(authenticator: (u, s) {
-      url = u;
-      return browser()(u, s);
-    }).login(forceLogin: true);
-    expect(Uri.parse(url!).queryParameters['prompt'], 'login');
-  });
-
-  test('rechaza un state distinto (CSRF)', () async {
-    final auth = service(authenticator: browser(state: 'otro'));
-    await expectLater(auth.login(), throwsA(isA<AuthException>().having((e) => e.code, 'code', 'invalid_state')));
-    expect(server.requests.where((r) => r.path == '/oauth/token'), isEmpty);
-    expect(await storage.read(), isNull);
-  });
-
-  test('rechaza un iss de otro servidor (RFC 9207)', () async {
-    final auth = service(authenticator: browser(iss: 'http://malicioso.test'));
-    await expectLater(auth.login(), throwsA(isA<AuthException>().having((e) => e.code, 'code', 'invalid_issuer')));
-    expect(await storage.read(), isNull);
-  });
-
-  test('propaga el error del servidor y la cancelación del usuario', () async {
-    await expectLater(
-      service(authenticator: browser(error: 'access_denied')).login(),
-      throwsA(isA<AuthException>().having((e) => e.code, 'code', 'access_denied')),
-    );
-    await expectLater(
-      service(authenticator: (_, _) async => throw Exception('closed')).login(),
-      throwsA(isA<AuthException>().having((e) => e.code, 'code', 'cancelled')),
-    );
-  });
-
-  test('renovaciones simultáneas comparten una sola petición (rotación segura)', () async {
+  test('credenciales incorrectas: ApiException con el mensaje del servidor', () async {
     final auth = service();
-    await auth.login();
-    server.delay = const Duration(milliseconds: 20);
-
-    final results = await Future.wait([auth.refresh(), auth.refresh(), auth.refresh()]);
-    expect(results.map((t) => t.accessToken).toSet(), {'pl_at_2'});
-    final refreshes = server.requests.where((r) => r.form['grant_type'] == 'refresh_token').toList();
-    expect(refreshes, hasLength(1));
-    expect(refreshes.single.form['refresh_token'], 'pl_rt_1');
-
-    // La siguiente renovación usa el refresh token rotado
-    await auth.refresh();
-    expect(server.requests.last.form['refresh_token'], 'pl_rt_2');
-  });
-
-  test('refresh rechazado (invalid_grant) cierra la sesión y lo avisa', () async {
-    final auth = service();
-    await auth.login();
-    server.rejectRefresh = true;
-
-    final expired = auth.onSessionExpired.first;
-    await expectLater(auth.refresh(), throwsA(isA<AuthException>().having((e) => e.code, 'code', 'session_expired')));
-    await expired.timeout(const Duration(seconds: 1));
+    await expectLater(
+      auth.login(email: 'ana@test.com', password: 'mala'),
+      throwsA(isA<ApiException>().having((e) => e.code, 'code', 'invalid_credentials')),
+    );
     expect(auth.isSignedIn, isFalse);
-    expect(await storage.read(), isNull);
   });
 
-  test('logout revoca el refresh token y borra la sesión local', () async {
+  test('registro envía la fecha en ISO y el código de invitación', () async {
     final auth = service();
-    await auth.login();
+    await auth.register(
+      username: 'ana',
+      email: 'ana@test.com',
+      password: 'secreto123',
+      passwordConfirmation: 'secreto123',
+      birthDate: DateTime(1990, 5, 2),
+      referralCode: ' ABC123 ',
+    );
+    final body = server.requests.last.body;
+    expect(body['birth_date'], '1990-05-02');
+    expect(body['referral_code'], 'ABC123');
+    expect(body['password_confirmation'], 'secreto123');
+    expect(storage.token, 'pl_1');
+  });
+
+  test('errores de validación del registro indican el campo', () async {
+    await expectLater(
+      service().register(
+        username: 'ocupado',
+        email: 'x@test.com',
+        password: 'secreto123',
+        passwordConfirmation: 'secreto123',
+        birthDate: DateTime(1990),
+      ),
+      throwsA(isA<ApiException>().having((e) => e.field, 'field', 'username')),
+    );
+  });
+
+  test('restore recupera la sesión guardada', () async {
+    storage.token = 'pl_guardado';
+    final auth = service();
+    expect(await auth.restore(), isTrue);
+    expect(auth.token, 'pl_guardado');
+  });
+
+  test('si otro dispositivo inicia sesión, el 401 cierra la sesión local y avisa', () async {
+    final phone = service();
+    await phone.login(email: 'ana@test.com', password: 'secreto123');
+
+    // Otro dispositivo entra con la misma cuenta: el token del teléfono deja de valer
+    await AuthService(
+      storage: MemoryTokenStorage(),
+      dio: Dio()..httpClientAdapter = server,
+      apiUrl: api,
+    ).login(email: 'ana@test.com', password: 'secreto123');
+
+    var expired = 0;
+    phone.onSessionExpired.listen((_) => expired++);
+    await expectLater(client(phone).me(), throwsA(isA<ApiException>()));
+    await Future<void>.delayed(Duration.zero);
+    expect(expired, 1);
+    expect(phone.isSignedIn, isFalse);
+    expect(storage.token, isNull);
+  });
+
+  test('logout borra el token local y avisa al servidor', () async {
+    final auth = service();
+    await auth.login(email: 'ana@test.com', password: 'secreto123');
     await auth.logout();
     expect(auth.isSignedIn, isFalse);
-    expect(await storage.read(), isNull);
-    final revoke = server.requests.singleWhere((r) => r.path == '/oauth/revoke');
-    expect(revoke.form['token'], 'pl_rt_1');
-  });
-
-  test('restaura la sesión guardada', () async {
-    await service().login();
-    final restored = service();
-    expect(await restored.restore(), isTrue);
-    expect(await restored.validAccessToken(), 'pl_at_1');
+    expect(storage.token, isNull);
+    final last = server.requests.last;
+    expect((last.method, last.path, last.auth), ('DELETE', '/api/v1/auth/logout', 'Bearer pl_1'));
   });
 }

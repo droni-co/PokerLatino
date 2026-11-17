@@ -2,6 +2,7 @@ import { DateTime } from 'luxon'
 import app from '@adonisjs/core/services/app'
 import logger from '@adonisjs/core/services/logger'
 import db from '@adonisjs/lucid/services/db'
+import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import gameConfig from '#config/game'
 import Room from '#models/room'
 import Tournament from '#models/tournament'
@@ -22,6 +23,8 @@ import {
 } from '#game/holdem/engine'
 import { evaluateBest } from '#game/holdem/evaluator'
 import progressService from '#services/game/progress_service'
+import walletService from '#services/game/wallet_service'
+import { botView, decide } from '#game/bot/strategy'
 
 type Runtime = {
   roomId: number
@@ -48,6 +51,9 @@ type Runtime = {
   timedOut: Set<number>
   /** Jugadores que pidieron levantarse: se retiran en cuanto les toca */
   leaving: Set<number>
+  /** Bots (userId) de la mano actual: actúan solos */
+  bots: Set<number>
+  botTimer?: NodeJS.Timeout
 }
 
 /**
@@ -68,6 +74,8 @@ export class TableManager {
     timersEnabled: boolean
     nextHandDelayMs: number
     maxInactiveHands: number
+    botThinkMs: { min: number; max: number }
+    botIterations: number
   }
 
   constructor(options: Partial<TableManager['options']> = {}) {
@@ -75,6 +83,8 @@ export class TableManager {
       timersEnabled: !app.inTest,
       nextHandDelayMs: gameConfig.table.nextHandDelayMs,
       maxInactiveHands: gameConfig.table.maxInactiveHands,
+      botThinkMs: gameConfig.bots.thinkMs,
+      botIterations: gameConfig.bots.iterations,
       ...options,
     }
   }
@@ -130,6 +140,9 @@ export class TableManager {
           .where('leave_after_hand', true)
         for (const seat of pending) await cashOutSeat(trx, room, seat)
 
+        // Bots: la casa les recarga el stack hasta el buy-in máximo antes de cada mano
+        if (!room.tournamentId) await this.refillBots(trx, room)
+
         // Quien se quedó sin fichas se levanta ahora (no al cerrar la mano, para que durante
         // la pausa se vea el resultado con sus cartas). En torneo eso es eliminación: lo
         // gestiona el torneo.
@@ -144,6 +157,7 @@ export class TableManager {
           .where('room_id', roomId)
           .where('status', 'active')
           .where('stack', '>', 0)
+          .preload('user')
           .orderBy('seat_number')
         if (seats.length < 2) return null
 
@@ -200,7 +214,8 @@ export class TableManager {
           { client: trx }
         )
 
-        return { hand, handRow, room }
+        const bots = new Set(seats.filter((s) => s.user.isBot).map((s) => s.userId))
+        return { hand, handRow, room, bots }
       })
 
       if (!started) return null
@@ -212,6 +227,7 @@ export class TableManager {
       rt.acted = new Set()
       rt.timedOut = new Set()
       rt.leaving = new Set()
+      rt.bots = started.bots
       await this.afterAction(rt)
       return started.hand
     })
@@ -295,6 +311,58 @@ export class TableManager {
   }
 
   /**
+   * Turno de un bot: decide con la información que vería un jugador en su asiento.
+   * Lo llama un temporizador ("piensa" unos segundos); en los tests se llama a mano.
+   */
+  playBotTurn(roomId: number) {
+    return this.exclusive(roomId, async () => {
+      const rt = this.runtimes.get(roomId)
+      if (!rt?.hand || rt.hand.isComplete || rt.hand.toActSeat === null) return null
+      const seat = rt.hand.toActSeat
+      const player = rt.hand.player(seat)
+      if (!rt.bots.has(player.userId) || rt.leaving.has(player.userId)) return null
+
+      let action = rt.hand.timeoutAction()
+      try {
+        action = decide(botView(rt.hand, seat), { iterations: this.options.botIterations })
+        rt.hand.applyAction(seat, action)
+      } catch (error) {
+        logger.error({ err: error, roomId, action }, 'El bot eligió una acción inválida')
+        action = rt.hand.timeoutAction()
+        rt.hand.applyAction(seat, action)
+      }
+      rt.acted.add(player.userId)
+      await this.afterAction(rt)
+      return action
+    })
+  }
+
+  /**
+   * Recarga el stack de los bots sentados hasta el buy-in máximo de la mesa: la casa pone
+   * las fichas en su billetera (`bot_refill`) y el bot las compra (`buy_in`).
+   */
+  private async refillBots(trx: TransactionClientContract, room: Room) {
+    const seats = await RoomSeat.query({ client: trx })
+      .where('room_id', room.id)
+      .where('leave_after_hand', false)
+      .whereHas('user', (q) => q.where('is_bot', true))
+    for (const seat of seats) {
+      const missing = room.maxBuyIn - seat.stack
+      if (missing <= 0) continue
+      const movement = {
+        userId: seat.userId,
+        amount: missing,
+        reference: { type: 'room', id: room.id },
+        description: `Recarga en ${room.name}`,
+      }
+      await walletService.credit(trx, { ...movement, type: 'bot_refill' })
+      await walletService.debit(trx, { ...movement, type: 'buy_in' })
+      seat.stack += missing
+      await seat.useTransaction(trx).save()
+    }
+  }
+
+  /**
    * Al arrancar el servidor: cancela las manos que quedaron a medias.
    * Los stacks de room_seats son los previos a la mano, así que nadie pierde fichas.
    */
@@ -338,6 +406,7 @@ export class TableManager {
     for (const rt of this.runtimes.values()) {
       clearTimeout(rt.actionTimer)
       clearTimeout(rt.startTimer)
+      clearTimeout(rt.botTimer)
     }
     this.runtimes.clear()
     this.queues.clear()
@@ -411,6 +480,7 @@ export class TableManager {
             displayName: seat.user.displayName,
             avatar: seat.user.avatar,
             level: levels.get(seat.userId) ?? 1,
+            isBot: seat.user.isBot,
           },
           stack: p ? p.stack : seat.stack,
           inHand: !!p,
@@ -563,6 +633,7 @@ export class TableManager {
 
   private async afterAction(rt: Runtime) {
     clearTimeout(rt.actionTimer)
+    clearTimeout(rt.botTimer)
     rt.turnDeadline = null
 
     // Quien pidió levantarse se retira en cuanto le toca (no se espera su tiempo)
@@ -587,6 +658,19 @@ export class TableManager {
           logger.error({ err: error, roomId: rt.roomId }, 'Error en timeout de acción')
         )
       }, rt.actionTimeoutSeconds * 1000)
+
+      // Le toca a un bot: "piensa" un momento (siempre menos que el tiempo de turno)
+      const toAct = hand.player(hand.toActSeat!).userId
+      if (rt.bots.has(toAct)) {
+        const { min, max } = this.options.botThinkMs
+        const limit = Math.max(0, rt.actionTimeoutSeconds * 1000 - 2000)
+        const delay = Math.min(limit, min + Math.random() * (max - min))
+        rt.botTimer = setTimeout(() => {
+          this.playBotTurn(rt.roomId).catch((error) =>
+            logger.error({ err: error, roomId: rt.roomId }, 'Error en el turno del bot')
+          )
+        }, delay)
+      }
     }
   }
 
@@ -642,8 +726,9 @@ export class TableManager {
             updated_at: DateTime.now().toSQL(),
           })
 
-        // Las fichas de torneo no son de la billetera: no cuentan en las estadísticas
-        if (room.tournamentId) continue
+        // Las fichas de torneo no son de la billetera: no cuentan en las estadísticas.
+        // Los bots tampoco tienen estadísticas.
+        if (room.tournamentId || rt.bots.has(p.userId)) continue
         await trx.rawQuery(
           `UPDATE player_stats SET
              hands_played = hands_played + 1,
@@ -704,6 +789,7 @@ export class TableManager {
 
     // Experiencia y logros (también en torneo). Un fallo aquí no afecta a la mesa.
     for (const p of result.players) {
+      if (rt.bots.has(p.userId)) continue
       try {
         await progressService.recordHand(p.userId, {
           won: p.isWinner,
@@ -756,6 +842,7 @@ export class TableManager {
         acted: new Set(),
         timedOut: new Set(),
         leaving: new Set(),
+        bots: new Set(),
       }
       this.runtimes.set(roomId, rt)
     }

@@ -75,6 +75,7 @@ export class SocialService {
   async search(userId: number, text: string) {
     const users = await User.query()
       .whereNotNull('username')
+      .where('is_bot', false)
       .whereNot('id', userId)
       .whereILike('username', likePrefix(text.trim()))
       .orderByRaw('length(username), username')
@@ -112,6 +113,9 @@ export class SocialService {
     }
     const target = await User.find(targetId)
     if (!target) throw new GameError('player_not_found', 'Ese jugador no existe')
+    if (target.isBot) {
+      throw new GameError('invalid_friend_request', `${target.displayName} es un bot de la casa`)
+    }
 
     const result = await db.transaction(async (trx) => {
       const existing = await this.pairQuery(user.id, targetId, trx).forUpdate().first()

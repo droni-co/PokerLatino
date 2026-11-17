@@ -8,13 +8,11 @@ environment:
 
 dependencies:
   audioplayers: ^6.8.1
-  crypto: ^3.0.8
   dio: ^5.11.1
   flutter:
     sdk: flutter
   flutter_riverpod: ^3.5.0
   flutter_secure_storage: ^11.2.0
-  flutter_web_auth_2: ^5.1.0
   flutter_web_plugins:
     sdk: flutter
   go_router: ^18.1.4

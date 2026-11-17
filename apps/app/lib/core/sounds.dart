@@ -58,9 +58,10 @@ class AudioPlayersBackend implements SoundBackend {
 
   @override
   Future<void> play(String asset, double volume) async {
-    final pool = _players.putIfAbsent(asset, () => [
-          for (var i = 0; i < _voices; i++) AudioPlayer()..setReleaseMode(ReleaseMode.stop),
-        ]);
+    final pool = _players.putIfAbsent(
+      asset,
+      () => [for (var i = 0; i < _voices; i++) AudioPlayer()..setReleaseMode(ReleaseMode.stop)],
+    );
     final i = _next[asset] ?? 0;
     _next[asset] = (i + 1) % pool.length;
     final player = pool[i];

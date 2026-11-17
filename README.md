@@ -31,7 +31,7 @@ agregar cualquier cosa que les dé valor real (compras, premios, intercambio).
 ```bash
 pnpm install          # dependencias del workspace
 pnpm api:migrate      # corre migraciones
-pnpm api:seed         # cliente OAuth de la app Flutter + salas iniciales
+pnpm api:seed         # salas iniciales
 pnpm api:dev          # API en http://localhost:3333 (con HMR)
 ```
 
@@ -46,7 +46,7 @@ Copia `apps/api/.env.example` a `apps/api/.env` si no existe y genera la clave c
 
 ### Cliente Flutter (web y móvil)
 
-Requiere la API corriendo (`pnpm dev`) y el cliente OAuth sembrado (`pnpm api:seed`).
+Requiere la API corriendo (`pnpm dev`) y las salas sembradas (`pnpm api:seed`).
 
 ```bash
 cd apps/app
@@ -56,14 +56,13 @@ flutter run -d emulator-5554              # Android (usa http://10.0.2.2:3333 au
 flutter run --dart-define=API_URL=http://192.168.1.10:3333   # dispositivo físico en tu red
 ```
 
-- **Login**: OAuth2 + PKCE con las páginas de la API. En web se abre una ventana emergente que
-  vuelve a `/<origen>/auth.html`; en móvil, el navegador del sistema vuelve por el esquema
-  `co.droni.pokerlatino:/oauth/callback`. Los tokens se guardan cifrados (Keychain/Keystore) y la
-  renovación es de un solo vuelo (el servidor rota los refresh tokens).
+- **Login**: formulario de la app (entrar / crear cuenta) con email y contraseña. El access token
+  se guarda cifrado (Keychain/Keystore). Si la API responde 401 (se inició sesión en otro
+  dispositivo o venció), la app vuelve al login y lo explica.
 - **Mesa**: el estado se consulta cada segundo (polling). Tu asiento siempre aparece abajo.
 - **Producción web**: la sirve el propio servidor de Adonis (ver "Despliegue"); la app usa su mismo
   origen como URL de la API, así que no hace falta CORS ni configurar `API_URL`.
-- **Pruebas**: `flutter test` (PKCE con el vector del RFC 7636, cliente OAuth con servidor simulado,
+- **Pruebas**: `flutter test` (sesión y formulario de login con servidor simulado,
   modelos contra JSON real de la API en `test/fixtures/`, lógica y widgets de la mesa en tamaños
   de móvil, horizontal y escritorio).
 
@@ -75,8 +74,8 @@ junto a la API, en el mismo dominio y puerto:
 | Ruta | Qué responde |
 |------|--------------|
 | `/`, `/lobby`, `/rooms/5`… | La app web (`index.html`; las rutas de la app se resuelven en el navegador) |
-| `/main.dart.js`, `/assets/…`, `/auth.html`… | Archivos de la app (`@adonisjs/static`, revalidados con ETag) |
-| `/api/v1/…`, `/oauth/…`, `/.well-known/…`, `/health` | El servidor (API, login OAuth, salud) |
+| `/main.dart.js`, `/assets/…`… | Archivos de la app (`@adonisjs/static`, revalidados con ETag) |
+| `/api/v1/…`, `/r/…`, `/health` | El servidor (API, enlaces de invitación, salud) |
 
 ```bash
 pnpm build            # flutter build web → apps/api/public, y luego node ace build → apps/api/build
@@ -86,8 +85,7 @@ node bin/server.js    # con .env de producción (APP_URL=https://<tu-dominio>, N
 node ace migration:run --force && node ace db:seed   # la primera vez / tras migraciones nuevas
 ```
 
-- `APP_URL` debe ser la URL pública: el seeder registra `<APP_URL>/auth.html` como redirect OAuth
-  de la app web (vuelve a correr `db:seed` si cambia el dominio).
+- `APP_URL` debe ser la URL pública.
 - `apps/api/public/` no se versiona; se regenera en cada `pnpm build` / `pnpm build:web`.
 - En desarrollo puedes seguir usando `pnpm app:web` (puerto 8080, con hot reload) contra `pnpm dev`.
   Si existe una build en `public/`, `pnpm dev` también la sirve en http://localhost:3333.
@@ -111,7 +109,7 @@ con `apps/app/.metadata`) y la API; al arrancar corre migraciones y seeders (des
 | `pnpm dev` | Levanta la API |
 | `pnpm db:psql` | Consola psql |
 | `pnpm api:migrate` | Corre migraciones |
-| `pnpm api:seed` | Registra el cliente OAuth `poker-latino-app` y las salas iniciales |
+| `pnpm api:seed` | Crea las salas iniciales |
 | `pnpm api:test` | Tests de la API (usa la DB `poker_latino_test`) |
 | `pnpm app:get` / `app:dev` | `flutter pub get` / `flutter run` |
 | `pnpm app:web` | App web en http://localhost:8080 (desarrollo, contra la API en :3333) |
@@ -151,7 +149,7 @@ con `apps/app/.metadata`) y la API; al arrancar corre migraciones y seeders (des
 **Tablas:** `wallets`, `wallet_transactions`, `room_levels`, `rooms`, `room_seats`, `hands`, `hand_players`,
 `hand_actions` (historial de manos) y `player_stats` (estadísticas por jugador).
 
-**Endpoints** (requieren token con scope `game`)
+**Endpoints** (requieren token)
 
 | Endpoint | Descripción |
 |----------|-------------|
@@ -166,7 +164,7 @@ con `apps/app/.metadata`) y la API; al arrancar corre migraciones y seeders (des
 | `DELETE /api/v1/rooms/:id/seat` | Levantarse (devuelve las fichas a la billetera) |
 | `GET /api/v1/me/stats` | Estadísticas del jugador |
 
-**Mesa en vivo** (requieren scope `game`)
+**Mesa en vivo** (requieren token)
 
 | Endpoint | Descripción |
 |----------|-------------|
@@ -326,49 +324,22 @@ y High Rollers (50/100), con buy-in de 40 a 100 ciegas grandes.
 
 **Registro:** email, contraseña y **fecha de nacimiento**, con una edad mínima de 18 años (`config/game.ts → minimumAge`).
 
-## Autenticación (OAuth2)
+## Autenticación
 
-La API es su propio servidor OAuth2 (`authorization_code` + PKCE, según OAuth 2.1). El registro y el
-login son páginas HTML del servidor que la app abre en el navegador del sistema.
+Email + contraseña → access token de AdonisJS (`Authorization: Bearer pl_…`), válido 30 días.
 
-```
-App Flutter                     Navegador                         API
-    │ genera code_verifier + code_challenge
-    │── abre /oauth/authorize?...&code_challenge=… ──▶ login / registro (sesión web)
-    │◀── co.droni.pokerlatino:/oauth/callback?code=…&state=… ──┘
-    │── POST /oauth/token (code + code_verifier) ─────────────────────────▶
-    │◀── { access_token (15 min), refresh_token (30 días, rotativo) } ─────
-    │── GET /api/v1/me  Authorization: Bearer pl_at_… ────────────────────▶
-```
+**Una sola sesión por jugador:** al iniciar sesión se borran todos sus tokens anteriores. El otro
+dispositivo recibe `401` en su siguiente petición y la app le muestra que la sesión se abrió en otro
+dispositivo.
 
 | Endpoint | Descripción |
 |----------|-------------|
-| `GET /.well-known/oauth-authorization-server` | Metadata de discovery (RFC 8414) |
-| `GET /oauth/authorize` | Inicio del flujo. Parámetros: `response_type=code`, `client_id`, `redirect_uri`, `scope`, `state`, `code_challenge`, `code_challenge_method=S256`, opcional `prompt=login` |
-| `GET/POST /oauth/login`, `/oauth/register` | Páginas HTML de login y registro (email + contraseña) |
-| `POST /oauth/logout` | Cierra la sesión del navegador |
-| `POST /oauth/token` | `grant_type=authorization_code` o `refresh_token` |
-| `POST /oauth/revoke` | Revoca un token (RFC 7009). Revocar el refresh token = cerrar sesión en la app |
-| `POST /oauth/introspect` | Introspección (RFC 7662), solo clientes confidenciales |
-| `GET /api/v1/me` | Usuario actual (requiere scope `profile`) |
+| `POST /api/v1/auth/register` | `{ username, email, password, password_confirmation, birth_date: "YYYY-MM-DD", referral_code? }` → `201 { data: { token, user } }`. Si no viene `referral_code`, usa el de la cookie del enlace `/r/CODIGO` |
+| `POST /api/v1/auth/login` | `{ email, password }` → `{ data: { token, user } }`; cierra las demás sesiones. `401 invalid_credentials` si no coinciden |
+| `DELETE /api/v1/auth/logout` | Invalida el token actual (`204`) |
+| `GET /api/v1/me` | Usuario actual |
 | `GET /health` | Estado de API y DB |
 
-**Seguridad implementada**
-- PKCE obligatorio (solo `S256`), `state` y parámetro `iss` en la respuesta (RFC 9207).
-- `redirect_uri` con coincidencia exacta; para loopback (`http://localhost`) se acepta cualquier puerto (RFC 8252).
-- Codes de un solo uso (5 min): si se reutilizan, se revocan los tokens emitidos con ellos.
-- Refresh tokens rotativos con detección de reutilización: si se usa uno ya rotado, se revoca toda la sesión.
-- Tokens opacos guardados como SHA-256; contraseñas y secretos de cliente con scrypt.
-- CSRF y CSP en las páginas HTML; `Cache-Control: no-store` en las respuestas de tokens.
-
-**Scopes:** `profile` (datos de la cuenta) y `game` (jugar).
-
-**Clientes OAuth**
-- `poker-latino-app`: la app Flutter. Es un cliente público y propio (no muestra pantalla de consentimiento). Se registra con `pnpm api:seed`.
-- Para registrar otros clientes:
-
-```bash
-cd apps/api
-node ace oauth:client --id=mi-backend --name="Mi backend" --confidential
-node ace oauth:client --id=app-amiga --name="App amiga" -r https://amiga.test/callback
-```
+- Tokens opacos guardados como hash en `auth_access_tokens`; contraseñas con scrypt.
+- Sin CSRF: la API no se autentica con cookies.
+- Los bots de la casa no pueden iniciar sesión.

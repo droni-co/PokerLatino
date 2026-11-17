@@ -21,147 +21,43 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/invite_controller').default['show']>>>
     }
   }
-  'token.metadata': {
-    methods: ["GET","HEAD"]
-    pattern: '/.well-known/oauth-authorization-server'
-    types: {
-      body: {}
-      paramsTuple: []
-      params: {}
-      query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/oauth/token_controller').default['metadata']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/oauth/token_controller').default['metadata']>>>
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/oauth/token_controller').default['metadata']>>>
-    }
-  }
-  'oauth.authorize': {
-    methods: ["GET","HEAD"]
-    pattern: '/oauth/authorize'
-    types: {
-      body: {}
-      paramsTuple: []
-      params: {}
-      query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/oauth/authorize_controller').default['show']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/oauth/authorize_controller').default['show']>>>
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/oauth/authorize_controller').default['show']>>>
-    }
-  }
-  'oauth.authorize.decide': {
+  'auth.register': {
     methods: ["POST"]
-    pattern: '/oauth/authorize'
-    types: {
-      body: {}
-      paramsTuple: []
-      params: {}
-      query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/oauth/authorize_controller').default['decide']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/oauth/authorize_controller').default['decide']>>>
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/oauth/authorize_controller').default['decide']>>>
-    }
-  }
-  'oauth.login': {
-    methods: ["GET","HEAD"]
-    pattern: '/oauth/login'
-    types: {
-      body: {}
-      paramsTuple: []
-      params: {}
-      query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/oauth/session_controller').default['create']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/oauth/session_controller').default['create']>>>
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/oauth/session_controller').default['create']>>>
-    }
-  }
-  'oauth.login.store': {
-    methods: ["POST"]
-    pattern: '/oauth/login'
-    types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/user').loginValidator)>>
-      paramsTuple: []
-      params: {}
-      query: ExtractQuery<InferInput<(typeof import('#validators/user').loginValidator)>>
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/oauth/session_controller').default['store']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/oauth/session_controller').default['store']>>> | { status: 422; response: { errors: SimpleError[] } }
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/oauth/session_controller').default['store']>>> | { status: 422; response: { errors: SimpleError[] } }
-    }
-  }
-  'oauth.logout': {
-    methods: ["POST"]
-    pattern: '/oauth/logout'
-    types: {
-      body: {}
-      paramsTuple: []
-      params: {}
-      query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/oauth/session_controller').default['destroy']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/oauth/session_controller').default['destroy']>>>
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/oauth/session_controller').default['destroy']>>>
-    }
-  }
-  'oauth.register': {
-    methods: ["GET","HEAD"]
-    pattern: '/oauth/register'
-    types: {
-      body: {}
-      paramsTuple: []
-      params: {}
-      query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/oauth/register_controller').default['create']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/oauth/register_controller').default['create']>>>
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/oauth/register_controller').default['create']>>>
-    }
-  }
-  'oauth.register.store': {
-    methods: ["POST"]
-    pattern: '/oauth/register'
+    pattern: '/api/v1/auth/register'
     types: {
       body: ExtractBody<InferInput<(typeof import('#validators/user').registerValidator)>>
       paramsTuple: []
       params: {}
       query: ExtractQuery<InferInput<(typeof import('#validators/user').registerValidator)>>
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/oauth/register_controller').default['store']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/oauth/register_controller').default['store']>>> | { status: 422; response: { errors: SimpleError[] } }
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/oauth/register_controller').default['store']>>> | { status: 422; response: { errors: SimpleError[] } }
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/auth_controller').default['register']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/auth_controller').default['register']>>> | { status: 422; response: { errors: SimpleError[] } }
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/auth_controller').default['register']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
-  'oauth.token': {
+  'auth.login': {
     methods: ["POST"]
-    pattern: '/oauth/token'
+    pattern: '/api/v1/auth/login'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/user').loginValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/user').loginValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/auth_controller').default['login']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/auth_controller').default['login']>>> | { status: 422; response: { errors: SimpleError[] } }
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/auth_controller').default['login']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'auth.logout': {
+    methods: ["DELETE"]
+    pattern: '/api/v1/auth/logout'
     types: {
       body: {}
       paramsTuple: []
       params: {}
       query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/oauth/token_controller').default['token']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/oauth/token_controller').default['token']>>>
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/oauth/token_controller').default['token']>>>
-    }
-  }
-  'oauth.revoke': {
-    methods: ["POST"]
-    pattern: '/oauth/revoke'
-    types: {
-      body: {}
-      paramsTuple: []
-      params: {}
-      query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/oauth/token_controller').default['revoke']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/oauth/token_controller').default['revoke']>>>
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/oauth/token_controller').default['revoke']>>>
-    }
-  }
-  'oauth.introspect': {
-    methods: ["POST"]
-    pattern: '/oauth/introspect'
-    types: {
-      body: {}
-      paramsTuple: []
-      params: {}
-      query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/oauth/token_controller').default['introspect']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/oauth/token_controller').default['introspect']>>>
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/oauth/token_controller').default['introspect']>>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/auth_controller').default['logout']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/auth_controller').default['logout']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/auth_controller').default['logout']>>>
     }
   }
   'me': {
@@ -422,6 +318,175 @@ export interface Registry {
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/game/stats_controller').default['show']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/game/stats_controller').default['show']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/game/stats_controller').default['show']>>>
+    }
+  }
+  'me.progress': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/me/progress'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/game/progress_controller').default['show']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/game/progress_controller').default['show']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/game/progress_controller').default['show']>>>
+    }
+  }
+  'me.progress.seen': {
+    methods: ["POST"]
+    pattern: '/api/v1/me/progress/seen'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/game/progress_controller').default['seen']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/game/progress_controller').default['seen']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/game/progress_controller').default['seen']>>>
+    }
+  }
+  'players.show': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/players/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/game/progress_controller').default['player']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/game/progress_controller').default['player']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/game/progress_controller').default['player']>>>
+    }
+  }
+  'inbox': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/inbox'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/game/invitations_controller').default['inbox']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/game/invitations_controller').default['inbox']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/game/invitations_controller').default['inbox']>>>
+    }
+  }
+  'players.search': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/players'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: ExtractQueryForGet<InferInput<(typeof import('#validators/game').playerSearchValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/game/friends_controller').default['search']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/game/friends_controller').default['search']>>> | { status: 422; response: { errors: SimpleError[] } }
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/game/friends_controller').default['search']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'friends.index': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/friends'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: ExtractQueryForGet<InferInput<(typeof import('#validators/game').friendsListValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/game/friends_controller').default['index']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/game/friends_controller').default['index']>>> | { status: 422; response: { errors: SimpleError[] } }
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/game/friends_controller').default['index']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'friends.destroy': {
+    methods: ["DELETE"]
+    pattern: '/api/v1/friends/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/game/friends_controller').default['destroy']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/game/friends_controller').default['destroy']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/game/friends_controller').default['destroy']>>>
+    }
+  }
+  'friends.requests.store': {
+    methods: ["POST"]
+    pattern: '/api/v1/friends/requests'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/game').friendRequestValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/game').friendRequestValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/game/friends_controller').default['request']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/game/friends_controller').default['request']>>> | { status: 422; response: { errors: SimpleError[] } }
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/game/friends_controller').default['request']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'friends.requests.accept': {
+    methods: ["POST"]
+    pattern: '/api/v1/friends/requests/:id/accept'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/game/friends_controller').default['accept']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/game/friends_controller').default['accept']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/game/friends_controller').default['accept']>>>
+    }
+  }
+  'friends.requests.dismiss': {
+    methods: ["DELETE"]
+    pattern: '/api/v1/friends/requests/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/game/friends_controller').default['dismiss']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/game/friends_controller').default['dismiss']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/game/friends_controller').default['dismiss']>>>
+    }
+  }
+  'rooms.invitations.store': {
+    methods: ["POST"]
+    pattern: '/api/v1/rooms/:id/invitations'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/game').friendRequestValidator)>>
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/game').friendRequestValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/game/invitations_controller').default['store']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/game/invitations_controller').default['store']>>> | { status: 422; response: { errors: SimpleError[] } }
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/game/invitations_controller').default['store']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'invitations.accept': {
+    methods: ["POST"]
+    pattern: '/api/v1/invitations/:id/accept'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/game/invitations_controller').default['accept']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/game/invitations_controller').default['accept']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/game/invitations_controller').default['accept']>>>
+    }
+  }
+  'invitations.decline': {
+    methods: ["DELETE"]
+    pattern: '/api/v1/invitations/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/game/invitations_controller').default['decline']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/game/invitations_controller').default['decline']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/game/invitations_controller').default['decline']>>>
     }
   }
   'tournaments.index': {

@@ -37,6 +37,7 @@ export default class RoomTransformer extends BaseTransformer<Room> {
         id: seat.userId,
         displayName: seat.user?.displayName ?? `Jugador #${seat.userId}`,
         avatar: seat.user?.avatar ?? null,
+        isBot: seat.user?.isBot ?? false,
       },
     }
   }

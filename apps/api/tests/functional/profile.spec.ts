@@ -5,7 +5,6 @@ import User from '#models/user'
 import Room from '#models/room'
 import accountService from '#services/game/account_service'
 import roomService from '#services/game/room_service'
-import oauthServer from '#services/oauth/oauth_server'
 import tableManager from '#game/table_manager'
 
 let counter = 0
@@ -18,9 +17,9 @@ function createPlayer(username = `perfil${++counter}`) {
   })
 }
 
-async function tokenFor(user: User, scopes = ['profile', 'game']) {
-  const { token } = await oauthServer.issueTestToken(user, scopes)
-  return token
+async function tokenFor(user: User) {
+  const token = await User.accessTokens.create(user)
+  return token.value!.release()
 }
 
 test.group('Perfil · nombre de usuario y avatar', (group) => {
@@ -139,35 +138,25 @@ test.group('Perfil · nombre de usuario y avatar', (group) => {
   test('el registro exige un nombre de usuario libre', async ({ client, assert }) => {
     await createPlayer('Ocupado')
     const register = (username?: string) =>
-      client
-        .post('/oauth/register')
-        .form({
-          ...(username ? { username } : {}),
-          email: 'registro@pokerlatino.test',
-          password: 'secreto123',
-          password_confirmation: 'secreto123',
-          birth_date: '1990-05-20',
-        })
-        .withCsrfToken()
-        .redirects(0)
+      client.post('/api/v1/auth/register').json({
+        ...(username ? { username } : {}),
+        email: 'registro@pokerlatino.test',
+        password: 'secreto123',
+        password_confirmation: 'secreto123',
+        birth_date: '1990-05-20',
+      } as any)
 
     const missing = await register()
-    missing.assertFlashMessage('inputErrorsBag', { username: ['Este campo es obligatorio'] })
+    missing.assertStatus(422)
+    missing.assertBodyContains({
+      errors: [{ field: 'username', message: 'Este campo es obligatorio' }],
+    })
 
     const taken = await register('ocupado')
-    taken.assertFlashMessage('inputErrorsBag', {
-      username: ['Ese nombre de usuario ya está en uso'],
+    taken.assertBodyContains({
+      errors: [{ field: 'username', message: 'Ese nombre de usuario ya está en uso' }],
     })
     assert.isNull(await User.findBy('email', 'registro@pokerlatino.test'))
-  })
-
-  test('PATCH /me requiere el scope "profile"', async ({ client }) => {
-    const user = await createPlayer()
-    const res = await client
-      .patch('/api/v1/me')
-      .bearerToken(await tokenFor(user, ['game']))
-      .json({ avatar: 'jaguar' })
-    res.assertStatus(403)
   })
 
   test('la mesa y la sala muestran el nombre y el avatar del jugador', async ({ client }) => {

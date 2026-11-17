@@ -192,6 +192,7 @@ class TableSeat {
     this.missedHands = 0,
     this.avatar,
     this.level = 1,
+    this.isBot = false,
   });
 
   final int seatNumber;
@@ -219,6 +220,9 @@ class TableSeat {
   /// Nivel de experiencia (se muestra junto al avatar)
   final int level;
 
+  /// Jugador de la casa: acompaña a quien está solo y se va al llegar otro jugador
+  final bool isBot;
+
   factory TableSeat.fromJson(Json json) {
     final player = json['player'] as Json;
     return TableSeat(
@@ -236,6 +240,7 @@ class TableSeat {
       leaving: json['leaving'] as bool? ?? false,
       missedHands: _int(json['missedHands'] ?? 0),
       level: _int(player['level'] ?? 1),
+      isBot: player['isBot'] as bool? ?? false,
     );
   }
 }

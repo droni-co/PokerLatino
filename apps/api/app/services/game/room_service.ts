@@ -12,13 +12,16 @@ import { cashOutSeat, type StandUpReason } from '#services/game/seat_cash_out'
 import { GameError } from '#exceptions/game_error'
 
 const seatedCount = (room: Room) => Number(room.$extras.seatedCount ?? 0)
+/** Jugadores reales (sin bots); si no se contaron aparte, todos los sentados */
+const humanCount = (room: Room) => Number(room.$extras.humanCount ?? seatedCount(room))
 const freeSeats = (room: Room) => Math.max(0, room.maxSeats - seatedCount(room))
 
 /**
  * Mesa para quien pulsa "Jugar" en un nivel:
- * 1. una mesa con un solo jugador esperando (así empieza una partida),
- * 2. si no, la mesa con más jugadores que aún tenga lugar,
- * 3. a igualdad, la de número más bajo.
+ * 1. una mesa con un solo jugador real esperando (así empieza una partida),
+ * 2. si no, la mesa con más jugadores reales que aún tenga lugar,
+ * 3. si no, una mesa donde espera un bot,
+ * 4. a igualdad, la de número más bajo.
  * Devuelve undefined si todas están llenas.
  */
 export function pickTable(tables: Room[]) {
@@ -26,7 +29,8 @@ export function pickTable(tables: Room[]) {
     .filter((t) => freeSeats(t) > 0)
     .sort(
       (a, b) =>
-        Number(seatedCount(b) === 1) - Number(seatedCount(a) === 1) ||
+        Number(humanCount(b) === 1) - Number(humanCount(a) === 1) ||
+        humanCount(b) - humanCount(a) ||
         seatedCount(b) - seatedCount(a) ||
         a.tableNumber - b.tableNumber
     )[0]
@@ -190,6 +194,9 @@ export class RoomService {
       .where('level_id', levelId)
       .where('status', 'active')
       .withCount('seats', (q) => q.as('seatedCount'))
+      .withCount('seats', (q) =>
+        q.whereHas('user', (u) => u.where('is_bot', false)).as('humanCount')
+      )
       .orderBy('table_number')
   }
 

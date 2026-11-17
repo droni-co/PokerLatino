@@ -1,194 +1,105 @@
 import 'dart:async';
 
 import 'package:dio/dio.dart';
-import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
 
 import '../api/api_exception.dart';
 import '../config.dart';
-import 'pkce.dart';
+import '../models/models.dart';
 import 'token_storage.dart';
 
-/// Abre el navegador en `url` y devuelve la URL de callback completa.
-typedef WebAuthenticator = Future<String> Function(String url, String callbackScheme);
-
-Future<String> defaultWebAuthenticator(String url, String callbackScheme) =>
-    FlutterWebAuth2.authenticate(url: url, callbackUrlScheme: callbackScheme);
-
-/// Cliente OAuth2 (authorization_code + PKCE) contra el servidor de la API.
+/// Sesión del jugador: email + contraseña → access token.
 ///
-/// - El login y el registro ocurren en las páginas del servidor (navegador del sistema
-///   en móvil, ventana emergente en web).
-/// - La renovación es de "un solo vuelo": si varias peticiones necesitan renovar el token
-///   a la vez, todas esperan la misma renovación. Es importante porque el servidor rota los
-///   refresh tokens y, si detecta uno reutilizado, cierra la sesión por seguridad.
+/// - El servidor solo admite una sesión por jugador: al iniciar sesión en otro dispositivo
+///   este token deja de valer y la API responde 401. Entonces [expire] borra el token y
+///   avisa por [onSessionExpired] para volver a la pantalla de inicio de sesión.
+/// - El token dura 30 días; no hay renovación.
 class AuthService {
-  AuthService({
-    required this.storage,
-    Dio? dio,
-    WebAuthenticator? authenticator,
-    String? apiUrl,
-    String? redirectUri,
-  })  : _dio = dio ?? Dio(),
-        _authenticator = authenticator ?? defaultWebAuthenticator,
-        _apiUrl = apiUrl ?? AppConfig.apiUrl,
-        _redirectUri = redirectUri ?? AppConfig.redirectUri;
+  AuthService({required this.storage, Dio? dio, String? apiUrl})
+    : _dio = dio ?? Dio(),
+      _apiUrl = apiUrl ?? AppConfig.apiUrl;
 
   final TokenStorage storage;
   final Dio _dio;
-  final WebAuthenticator _authenticator;
   final String _apiUrl;
-  final String _redirectUri;
 
-  AuthTokens? _tokens;
-  Future<AuthTokens>? _refreshing;
-  String? _issuer;
+  String? _token;
 
   final _sessionExpired = StreamController<void>.broadcast();
 
-  /// Emite cuando la sesión ya no se puede renovar (hay que volver a iniciar sesión)
+  /// Emite cuando el servidor rechaza el token (otra sesión lo reemplazó o venció)
   Stream<void> get onSessionExpired => _sessionExpired.stream;
 
-  bool get isSignedIn => _tokens != null;
+  bool get isSignedIn => _token != null;
+
+  String? get token => _token;
 
   Future<bool> restore() async {
-    _tokens = await storage.read();
-    return _tokens != null;
+    _token = await storage.read();
+    return _token != null;
   }
 
-  /// Flujo completo: navegador → code → tokens.
-  /// [forceLogin] pide credenciales aunque haya sesión en el navegador (para cambiar de cuenta).
-  Future<void> login({bool forceLogin = false}) async {
-    final pkce = Pkce.generate();
-    final state = randomUrlSafe(16);
+  /// Inicia sesión (cierra la sesión que hubiera en otro dispositivo)
+  Future<Me> login({required String email, required String password}) =>
+      _authenticate('/auth/login', {'email': email, 'password': password});
 
-    final authorizeUrl = Uri.parse('$_apiUrl/oauth/authorize').replace(queryParameters: {
-      'response_type': 'code',
-      'client_id': AppConfig.clientId,
-      'redirect_uri': _redirectUri,
-      'scope': AppConfig.scopes,
-      'state': state,
-      'code_challenge': pkce.challenge,
-      'code_challenge_method': 'S256',
-      if (forceLogin) 'prompt': 'login',
-    });
+  /// Crea la cuenta y deja la sesión iniciada
+  Future<Me> register({
+    required String username,
+    required String email,
+    required String password,
+    required String passwordConfirmation,
+    required DateTime birthDate,
+    String? referralCode,
+  }) => _authenticate('/auth/register', {
+    'username': username,
+    'email': email,
+    'password': password,
+    'password_confirmation': passwordConfirmation,
+    'birth_date': _isoDate(birthDate),
+    if (referralCode != null && referralCode.trim().isNotEmpty) 'referral_code': referralCode.trim(),
+  });
 
-    final String callback;
-    try {
-      callback = await _authenticator(authorizeUrl.toString(), AppConfig.callbackScheme);
-    } catch (_) {
-      throw AuthException('Se canceló el inicio de sesión', code: 'cancelled');
-    }
-
-    final params = Uri.parse(callback).queryParameters;
-    if (params['error'] != null) {
-      throw AuthException(params['error_description'] ?? params['error']!, code: params['error']);
-    }
-    if (params['state'] != state) {
-      throw AuthException('Respuesta de autenticación inválida (state)', code: 'invalid_state');
-    }
-    // RFC 9207: confirmar que la respuesta viene de nuestro servidor
-    final iss = params['iss'];
-    if (iss != null && iss != await _getIssuer()) {
-      throw AuthException('Respuesta de autenticación inválida (iss)', code: 'invalid_issuer');
-    }
-    final code = params['code'];
-    if (code == null) throw AuthException('No se recibió el código de autorización');
-
-    final tokens = await _tokenRequest({
-      'grant_type': 'authorization_code',
-      'client_id': AppConfig.clientId,
-      'code': code,
-      'redirect_uri': _redirectUri,
-      'code_verifier': pkce.verifier,
-    });
-    await _save(tokens);
-  }
-
-  /// Access token válido; lo renueva si está por vencer.
-  Future<String?> validAccessToken() async {
-    final tokens = _tokens;
-    if (tokens == null) return null;
-    if (!tokens.isExpiringSoon) return tokens.accessToken;
-    try {
-      return (await refresh()).accessToken;
-    } on AuthException {
-      return null;
-    }
-  }
-
-  /// Renueva los tokens. Llamadas simultáneas comparten la misma petición.
-  Future<AuthTokens> refresh() {
-    return _refreshing ??= _doRefresh().whenComplete(() => _refreshing = null);
-  }
-
-  Future<AuthTokens> _doRefresh() async {
-    final current = _tokens;
-    if (current == null) throw AuthException('No hay sesión', code: 'signed_out');
-
-    try {
-      final tokens = await _tokenRequest({
-        'grant_type': 'refresh_token',
-        'client_id': AppConfig.clientId,
-        'refresh_token': current.refreshToken,
-      });
-      await _save(tokens);
-      return tokens;
-    } on ApiException catch (error) {
-      // invalid_grant: refresh token vencido o revocado → la sesión terminó
-      if (error.code == 'invalid_grant' || error.code == 'invalid_client') {
-        await _clear();
-        _sessionExpired.add(null);
-        throw AuthException('Tu sesión expiró. Inicia sesión de nuevo.', code: 'session_expired');
-      }
-      rethrow;
-    }
-  }
-
-  /// Cierra la sesión en este dispositivo revocando el refresh token (RFC 7009)
+  /// Cierra la sesión en este dispositivo
   Future<void> logout() async {
-    final tokens = _tokens;
+    final token = _token;
     await _clear();
-    if (tokens == null) return;
+    if (token == null) return;
     try {
-      await _dio.post<void>(
-        '$_apiUrl/oauth/revoke',
-        data: {'client_id': AppConfig.clientId, 'token': tokens.refreshToken},
-        options: Options(contentType: Headers.formUrlEncodedContentType),
+      await _dio.delete<void>(
+        '$_apiUrl/api/v1/auth/logout',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
     } catch (_) {
-      // Si falla la red, el token igual vence; localmente ya no existe
+      // Sin red: localmente ya no existe y el token vence solo
     }
   }
 
-  Future<AuthTokens> _tokenRequest(Map<String, String> body) async {
+  /// El servidor rechazó el token: la sesión terminó
+  Future<void> expire() async {
+    if (_token == null) return;
+    await _clear();
+    _sessionExpired.add(null);
+  }
+
+  Future<Me> _authenticate(String path, Map<String, Object> body) async {
     try {
-      final response = await _dio.post<Map<String, dynamic>>(
-        '$_apiUrl/oauth/token',
-        data: body,
-        options: Options(contentType: Headers.formUrlEncodedContentType),
-      );
-      return AuthTokens.fromTokenResponse(response.data!);
+      final response = await _dio.post<Map<String, dynamic>>('$_apiUrl/api/v1$path', data: body);
+      final data = response.data!['data'] as Map<String, dynamic>;
+      _token = data['token'] as String;
+      await storage.write(_token!);
+      return Me.fromJson(data['user'] as Map<String, dynamic>);
     } on DioException catch (error) {
       throw ApiException.fromDio(error);
     }
   }
 
-  Future<String> _getIssuer() async {
-    if (_issuer != null) return _issuer!;
-    final response =
-        await _dio.get<Map<String, dynamic>>('$_apiUrl/.well-known/oauth-authorization-server');
-    return _issuer = response.data!['issuer'] as String;
-  }
-
-  Future<void> _save(AuthTokens tokens) async {
-    _tokens = tokens;
-    await storage.write(tokens);
-  }
-
   Future<void> _clear() async {
-    _tokens = null;
+    _token = null;
     await storage.clear();
   }
+
+  static String _isoDate(DateTime d) =>
+      '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
   void dispose() => _sessionExpired.close();
 }

@@ -11,12 +11,13 @@ export default class HttpExceptionHandler extends ExceptionHandler {
 
   async handle(error: unknown, ctx: HttpContext) {
     /**
-     * Errores del guard OAuth2 en la API: respuesta JSON estilo RFC 6750
+     * Token ausente, vencido o invalidado (p. ej. el jugador inició sesión en otro
+     * dispositivo): la app vuelve a la pantalla de inicio de sesión
      */
-    if (error instanceof authErrors.E_UNAUTHORIZED_ACCESS && error.guardDriverName === 'oauth2') {
+    if (error instanceof authErrors.E_UNAUTHORIZED_ACCESS) {
       return ctx.response.unauthorized({
-        error: 'invalid_token',
-        error_description: 'Access token ausente, inválido o expirado',
+        error: 'unauthorized',
+        message: 'Tu sesión terminó. Inicia sesión de nuevo.',
       })
     }
 

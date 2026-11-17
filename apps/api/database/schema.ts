@@ -7,6 +7,42 @@
 import { BaseModel, column } from '@adonisjs/lucid/orm'
 import { DateTime } from 'luxon'
 
+export class AuthAccessTokenSchema extends BaseModel {
+  static $columns = [
+    'abilities',
+    'createdAt',
+    'expiresAt',
+    'hash',
+    'id',
+    'lastUsedAt',
+    'name',
+    'tokenableId',
+    'type',
+    'updatedAt',
+  ] as const
+  $columns = AuthAccessTokenSchema.$columns
+  @column()
+  declare abilities: string
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime | null
+  @column.dateTime()
+  declare expiresAt: DateTime | null
+  @column()
+  declare hash: string
+  @column({ isPrimary: true })
+  declare id: number
+  @column.dateTime()
+  declare lastUsedAt: DateTime | null
+  @column()
+  declare name: string | null
+  @column()
+  declare tokenableId: number
+  @column()
+  declare type: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
+}
+
 export class ChatMessageSchema extends BaseModel {
   static $columns = ['body', 'createdAt', 'id', 'roomId', 'userId'] as const
   $columns = ChatMessageSchema.$columns
@@ -146,138 +182,6 @@ export class HandSchema extends BaseModel {
   declare startedAt: DateTime
   @column()
   declare status: string
-}
-
-export class OauthAccessTokenSchema extends BaseModel {
-  static $columns = [
-    'clientId',
-    'createdAt',
-    'expiresAt',
-    'familyId',
-    'id',
-    'revokedAt',
-    'tokenHash',
-    'userId',
-  ] as const
-  $columns = OauthAccessTokenSchema.$columns
-  @column()
-  declare clientId: string
-  @column.dateTime({ autoCreate: true })
-  declare createdAt: DateTime
-  @column.dateTime()
-  declare expiresAt: DateTime
-  @column()
-  declare familyId: string
-  @column({ isPrimary: true })
-  declare id: string
-  @column.dateTime()
-  declare revokedAt: DateTime | null
-  @column()
-  declare tokenHash: string
-  @column()
-  declare userId: number
-}
-
-export class OauthAuthorizationCodeSchema extends BaseModel {
-  static $columns = [
-    'clientId',
-    'codeChallenge',
-    'codeChallengeMethod',
-    'codeHash',
-    'createdAt',
-    'expiresAt',
-    'familyId',
-    'id',
-    'redirectUri',
-    'usedAt',
-    'userId',
-  ] as const
-  $columns = OauthAuthorizationCodeSchema.$columns
-  @column()
-  declare clientId: string
-  @column()
-  declare codeChallenge: string
-  @column()
-  declare codeChallengeMethod: string
-  @column()
-  declare codeHash: string
-  @column.dateTime({ autoCreate: true })
-  declare createdAt: DateTime
-  @column.dateTime()
-  declare expiresAt: DateTime
-  @column()
-  declare familyId: string | null
-  @column({ isPrimary: true })
-  declare id: string
-  @column()
-  declare redirectUri: string
-  @column.dateTime()
-  declare usedAt: DateTime | null
-  @column()
-  declare userId: number
-}
-
-export class OauthClientSchema extends BaseModel {
-  static $columns = [
-    'createdAt',
-    'id',
-    'isFirstParty',
-    'name',
-    'revokedAt',
-    'secretHash',
-    'updatedAt',
-  ] as const
-  $columns = OauthClientSchema.$columns
-  @column.dateTime({ autoCreate: true })
-  declare createdAt: DateTime
-  @column({ isPrimary: true })
-  declare id: string
-  @column()
-  declare isFirstParty: boolean
-  @column()
-  declare name: string
-  @column.dateTime()
-  declare revokedAt: DateTime | null
-  @column()
-  declare secretHash: string | null
-  @column.dateTime({ autoCreate: true, autoUpdate: true })
-  declare updatedAt: DateTime | null
-}
-
-export class OauthRefreshTokenSchema extends BaseModel {
-  static $columns = [
-    'accessTokenId',
-    'clientId',
-    'createdAt',
-    'expiresAt',
-    'familyId',
-    'id',
-    'replacedById',
-    'revokedAt',
-    'tokenHash',
-    'userId',
-  ] as const
-  $columns = OauthRefreshTokenSchema.$columns
-  @column()
-  declare accessTokenId: string
-  @column()
-  declare clientId: string
-  @column.dateTime({ autoCreate: true })
-  declare createdAt: DateTime
-  @column.dateTime()
-  declare expiresAt: DateTime
-  @column()
-  declare familyId: string
-  @column({ isPrimary: true })
-  declare id: string
-  @column()
-  declare replacedById: string | null
-  @column.dateTime()
-  declare revokedAt: DateTime | null
-  @column()
-  declare tokenHash: string
-  @column()
-  declare userId: number
 }
 
 export class PlayerProgressSchema extends BaseModel {
@@ -686,6 +590,7 @@ export class UserSchema extends BaseModel {
     'createdAt',
     'email',
     'id',
+    'isBot',
     'password',
     'referralCode',
     'referredById',
@@ -703,6 +608,8 @@ export class UserSchema extends BaseModel {
   declare email: string
   @column({ isPrimary: true })
   declare id: number
+  @column()
+  declare isBot: boolean
   @column({ serializeAs: null })
   declare password: string
   @column()

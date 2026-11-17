@@ -31,14 +31,17 @@ class AuthController extends AsyncNotifier<Me?> {
   Future<Me?> build() async {
     final auth = ref.watch(authServiceProvider);
     _expired?.cancel();
-    _expired = auth.onSessionExpired.listen((_) => state = const AsyncData(null));
+    _expired = auth.onSessionExpired.listen((_) {
+      sessionReplaced = true;
+      state = const AsyncData(null);
+    });
     ref.onDispose(() => _expired?.cancel());
 
     if (!await auth.restore()) return null;
     try {
       return await ref.read(apiClientProvider).me();
     } catch (_) {
-      // Si la sesión expiró, el servicio ya borró los tokens → pantalla de login.
+      // Si el token ya no vale, el cliente borró la sesión → pantalla de login.
       // Si fue un error de red, se propaga y la pantalla de login ofrece reintentar
       // sin perder la sesión guardada.
       if (!auth.isSignedIn) return null;
@@ -46,12 +49,36 @@ class AuthController extends AsyncNotifier<Me?> {
     }
   }
 
-  Future<void> login({bool forceLogin = false}) async {
-    state = const AsyncLoading<Me?>(); // conserva el valor previo
-    state = await AsyncValue.guard(() async {
-      await ref.read(authServiceProvider).login(forceLogin: forceLogin);
-      return ref.read(apiClientProvider).me();
-    });
+  /// La sesión se cerró porque se inició en otro dispositivo (o venció)
+  bool sessionReplaced = false;
+
+  /// Los errores (credenciales, validación) se lanzan para que el formulario los muestre
+  Future<void> login({required String email, required String password}) async {
+    final me = await ref.read(authServiceProvider).login(email: email, password: password);
+    sessionReplaced = false;
+    state = AsyncData(me);
+  }
+
+  Future<void> register({
+    required String username,
+    required String email,
+    required String password,
+    required String passwordConfirmation,
+    required DateTime birthDate,
+    String? referralCode,
+  }) async {
+    final me = await ref
+        .read(authServiceProvider)
+        .register(
+          username: username,
+          email: email,
+          password: password,
+          passwordConfirmation: passwordConfirmation,
+          birthDate: birthDate,
+          referralCode: referralCode,
+        );
+    sessionReplaced = false;
+    state = AsyncData(me);
   }
 
   /// Guarda nombre de usuario y/o avatar y actualiza la sesión (ver [ApiClient.updateProfile])
@@ -63,13 +90,9 @@ class AuthController extends AsyncNotifier<Me?> {
 
   Future<void> logout() async {
     await ref.read(authServiceProvider).logout();
-    _forceLoginNext = true;
+    sessionReplaced = false;
     state = const AsyncData(null);
   }
-
-  /// Tras cerrar sesión, el siguiente login pide credenciales (permite cambiar de cuenta)
-  bool _forceLoginNext = false;
-  bool get shouldForceLogin => _forceLoginNext;
 }
 
 /*
@@ -88,7 +111,9 @@ final rescueProvider = FutureProvider.autoDispose<RescueStatus>((ref) {
 });
 
 /// Enlace de invitación y amigos invitados
-final referralsProvider = FutureProvider.autoDispose<ReferralSummary>((ref) => ref.watch(apiClientProvider).referrals());
+final referralsProvider = FutureProvider.autoDispose<ReferralSummary>(
+  (ref) => ref.watch(apiClientProvider).referrals(),
+);
 
 /// Fichas disponibles (null mientras carga)
 final walletBalanceProvider = Provider.autoDispose<int?>((ref) => ref.watch(walletProvider).value?.balance);
@@ -150,7 +175,9 @@ final roomFriendsProvider = FutureProvider.autoDispose.family<FriendsList, int>(
 */
 
 /// Tu nivel y logros con tu avance
-final myProgressProvider = FutureProvider.autoDispose<PlayerProgress>((ref) => ref.watch(apiClientProvider).myProgress());
+final myProgressProvider = FutureProvider.autoDispose<PlayerProgress>(
+  (ref) => ref.watch(apiClientProvider).myProgress(),
+);
 
 /// Tarjeta de un jugador (nivel, logros, relación)
 final playerCardProvider = FutureProvider.autoDispose.family<PlayerCard, int>(

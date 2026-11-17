@@ -4,6 +4,7 @@
  */
 
 export const controllers = {
+  Auth: () => import('#controllers/auth_controller'),
   game: {
     Chat: () => import('#controllers/game/chat_controller'),
     Config: () => import('#controllers/game/config_controller'),
@@ -19,11 +20,5 @@ export const controllers = {
     Wallets: () => import('#controllers/game/wallets_controller'),
   },
   Invite: () => import('#controllers/invite_controller'),
-  oauth: {
-    Authorize: () => import('#controllers/oauth/authorize_controller'),
-    Register: () => import('#controllers/oauth/register_controller'),
-    Session: () => import('#controllers/oauth/session_controller'),
-    Token: () => import('#controllers/oauth/token_controller'),
-  },
   Profile: () => import('#controllers/profile_controller'),
 }

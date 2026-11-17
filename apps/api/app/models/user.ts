@@ -4,15 +4,21 @@ import { compose } from '@adonisjs/core/helpers'
 import { withAuthFinder } from '@adonisjs/auth/mixins/lucid'
 import { hasMany } from '@adonisjs/lucid/orm'
 import type { HasMany } from '@adonisjs/lucid/types/relations'
-import type OauthAccessToken from '#models/oauth_access_token'
+import { DbAccessTokensProvider } from '@adonisjs/auth/access_tokens'
 import Wallet from '#models/wallet'
 import PlayerStat from '#models/player_stat'
 
 export default class User extends compose(UserSchema, withAuthFinder(hash)) {
   /**
-   * Token OAuth con el que se autenticó la petición actual (lo asigna el guard "api")
+   * Access tokens (Authorization: Bearer pl_...). Un jugador tiene como mucho uno vivo:
+   * al iniciar sesión se borran los anteriores (ver AuthController).
    */
-  declare currentAccessToken?: OauthAccessToken
+  static accessTokens = DbAccessTokensProvider.forModel(User, {
+    prefix: 'pl_',
+    table: 'auth_access_tokens',
+    type: 'auth_token',
+    expiresIn: '30 days',
+  })
 
   @hasMany(() => Wallet)
   declare wallets: HasMany<typeof Wallet>

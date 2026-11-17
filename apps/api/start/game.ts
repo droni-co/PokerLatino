@@ -13,6 +13,7 @@ import chatService from '#services/game/chat_service'
 import presenceService from '#services/game/presence_service'
 import tournamentService from '#services/game/tournament_service'
 import progressService from '#services/game/progress_service'
+import botService from '#services/game/bot_service'
 import gameConfig from '#config/game'
 
 const cancelled = await tableManager.recoverInterruptedHands()
@@ -46,6 +47,15 @@ const presence = setInterval(async () => {
   }
 }, gameConfig.table.presenceSweepSeconds * 1000)
 presence.unref()
+
+/**
+ * Bots: un jugador de la casa en las mesas con menos de 2 jugadores reales
+ */
+if (gameConfig.bots.enabled) {
+  botService.nudge()
+  const bots = setInterval(() => botService.nudge(), gameConfig.bots.syncIntervalSeconds * 1000)
+  bots.unref()
+}
 
 /**
  * Torneos: arranca los que llegaron a su hora con el cupo lleno y mantiene los que están

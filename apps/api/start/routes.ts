@@ -29,47 +29,28 @@ router.get('/health', async ({ response }) => {
 
 /*
 |--------------------------------------------------------------------------
-| Servidor OAuth2
+| Cuentas: registro e inicio de sesión (devuelven el access token)
 |--------------------------------------------------------------------------
-| Páginas HTML (sesión del navegador): authorize, login, register, logout
-| Endpoints máquina a máquina: token, revoke, introspect
 */
-router.get('/.well-known/oauth-authorization-server', [controllers.oauth.Token, 'metadata'])
-
 router
   .group(() => {
-    router.get('authorize', [controllers.oauth.Authorize, 'show']).as('authorize')
-    router.post('authorize', [controllers.oauth.Authorize, 'decide']).as('authorize.decide')
-
-    router.get('login', [controllers.oauth.Session, 'create']).as('login')
-    router.post('login', [controllers.oauth.Session, 'store']).as('login.store')
-    router.post('logout', [controllers.oauth.Session, 'destroy']).as('logout')
-
-    router.get('register', [controllers.oauth.Register, 'create']).as('register')
-    router.post('register', [controllers.oauth.Register, 'store']).as('register.store')
-
-    router.post('token', [controllers.oauth.Token, 'token']).as('token')
-    router.post('revoke', [controllers.oauth.Token, 'revoke']).as('revoke')
-    router.post('introspect', [controllers.oauth.Token, 'introspect']).as('introspect')
+    router.post('register', [controllers.Auth, 'register']).as('register')
+    router.post('login', [controllers.Auth, 'login']).as('login')
+    router.delete('logout', [controllers.Auth, 'logout']).as('logout').use(middleware.auth())
   })
-  .prefix('/oauth')
-  .as('oauth')
+  .prefix('/api/v1/auth')
+  .as('auth')
 
 /*
 |--------------------------------------------------------------------------
-| API (requiere access token OAuth2)
+| API (requiere access token)
 |--------------------------------------------------------------------------
 */
 router
   .group(() => {
-    router
-      .group(() => {
-        router.get('me', [controllers.Profile, 'show']).as('me')
-        router.patch('me', [controllers.Profile, 'update']).as('me.update')
-      })
-      .use(middleware.scope({ scopes: ['profile'] }))
+    router.get('me', [controllers.Profile, 'show']).as('me')
+    router.patch('me', [controllers.Profile, 'update']).as('me.update')
 
-    // Juego: requiere el scope "game"
     router
       .group(() => {
         router.get('game/config', [controllers.game.Config, 'show']).as('game.config')
@@ -135,7 +116,6 @@ router
           .as('tournaments.unregister')
       })
       .where('id', router.matchers.number())
-      .use(middleware.scope({ scopes: ['game'] }))
   })
   .prefix('/api/v1')
   .use(middleware.auth())
