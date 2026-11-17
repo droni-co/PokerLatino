@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -80,8 +81,17 @@ class _TournamentCalloutState extends ConsumerState<TournamentCallout> {
     ref.invalidate(inboxProvider);
   }
 
+  /// Cambió la ruta. go_router puede avisar en plena construcción (ruta inicial, redirección
+  /// al iniciar o cerrar sesión): entonces se repinta al terminar el frame.
   void _onRoute() {
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    if (SchedulerBinding.instance.schedulerPhase == SchedulerPhase.persistentCallbacks) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() {});
+      });
+    } else {
+      setState(() {});
+    }
   }
 
   @override
